@@ -7,53 +7,53 @@ LETERS_NUMBER = LETTERS + DIGITS
 
 # TOKENS
 # DATATYPE TOKENS
-INT		     = 'INT'
-FLOAT        = 'FLOAT'
-BOOLEAN      = 'BOOLEAN'
+INT		         = 'INT'
+FLOAT            = 'FLOAT'
+BOOLEAN          = 'BOOLEAN'
 # SPECIAL TOKENS
-STATEMENT    = 'STATEMENT'
-IDENTIFIER   = 'IDENTIFIER'
-KEYWORD      = 'KEYWORD'
-EQ           = 'EQ'
-LEFTPAREN    = '(' #'LEFT_PARENTHESIS'
-RIGHTPAREN   = ')' #'RIGHT_PARENRHESIS'
-EOF		     = 'EOF'
-COMMENT      = '#'
-COMMA        = ','
-ENDLINE      = ';'
+STATEMENT        = 'STATEMENT'
+IDENTIFIER       = 'IDENTIFIER'
+KEYWORD          = 'KEYWORD'
+EQ               = 'EQ'
+LEFTPAREN        = '(' #'LEFT_PARENTHESIS'
+RIGHTPAREN       = ')' #'RIGHT_PARENRHESIS'
+EOF		         = 'EOF'
+COMMENT          = '#'
+COMMA            = ','
+ENDLINE          = ';'
 # OPERATION TOKENS
-ADD          = 'ADD'
-SUB          = 'SUB'
-MUL          = 'MUL'
-DIV          = 'DIV'
-POW          = 'POWER'
+ADD              = 'ADD'
+SUB              = 'SUB'
+MUL              = 'MUL'
+DIV              = 'DIV'
+POW              = 'POWER'
 # LOGIC TOKENS
-AND          = 'AND'
-OR           = 'OR'
-COMPARISON   = 'COMPARISION'
-NOT_EQUAL    = 'NOT_EQUAL'
-LOWER_THAN   = 'LOWER_THAN'
-LOWER_OR_EQUAL = 'LOWER_OR_EQUAL_THAN'
-GREATER_THAN = 'GREATER_THAN'
+NOT              = 'NOT'
+AND              = 'AND'
+OR               = 'OR'
+COMPARISON       = 'COMPARISION'
+NOT_EQUAL        = 'NOT_EQUAL'
+LOWER_THAN       = 'LOWER_THAN'
+LOWER_OR_EQUAL   = 'LOWER_OR_EQUAL_THAN'
+GREATER_THAN     = 'GREATER_THAN'
 GREATER_OR_EQUAL = 'GREATER_OR_EQUAL_THAN'
-# STATEMENTS
-IF           = 'IF'
-THEN         = 'THEN'
-ELIF         = 'ELIF'
-ELSE         = 'ELSE'
-WHILE        = 'WHILE'
-FOR          = 'FOR'
-TO           = 'TO'
-# KEYWORDS
-FUNCTION   = 'FUNCTION'
-DOES       = 'DOES'
-ALT_DOES   = '->'
-NUMBER     = 'VAR'
-STRING     = 'STRING'
-BOOL       = 'BOOL'
-TRUE       = 'True'
-FALSE      = 'False'      
-NOT        = 'NOT'
+# STATEMENTS    
+IF               = 'IF'
+THEN             = 'THEN'
+ELIF             = 'ELIF'
+ELSE             = 'ELSE'
+WHILE            = 'WHILE'
+FOR              = 'FOR'
+TO               = 'TO'
+# KEYWORDS    
+FUNCTION         = 'FUNCTION'
+DOES             = 'DOES'
+ALT_DOES         = '->'
+NUMBER           = 'VAR'
+STRING           = 'STRING'
+BOOL             = 'BOOL'
+TRUE             = 'True'
+FALSE            = 'False'      
 
 # Special Groups
 LOGIC = (AND, OR, COMPARISON, NOT_EQUAL, LOWER_THAN, GREATER_THAN, LOWER_OR_EQUAL, GREATER_OR_EQUAL)
@@ -141,6 +141,8 @@ def make_identifier(current_char: str, code: str, position: int) -> (Token, int)
         return Token(AND), position
     elif id_str_upper == OR:
         return Token(OR), position
+    elif id_str_upper == NOT:
+        return Token(NOT), position
     
     # STATEMENT
     if id_str_upper == IF:
@@ -225,7 +227,7 @@ def lexer(code: str) -> list:
             tokens.append(Token(DIV))
         elif current_char == '^':
             tokens.append(Token(POW))
-        elif current_char == '!' and next_char(code, position) == '=':
+        elif current_char == '!' and code[position+1] == '=':
             current_char, position = next_char(code, position)
             tokens.append(Token(NOT_EQUAL))
         elif current_char == '<':
@@ -269,7 +271,7 @@ def parser(tokens: list) -> tuple:
 
         if not tokens:
             return None
-        
+
         # Operadores AND y OR
         def logic_operations() -> tuple:
             nonlocal tokens
@@ -369,6 +371,8 @@ def parser(tokens: list) -> tuple:
                     if_statement()
                 else:
                     raise SyntaxError("Sintaxis invalida")
+            elif token.struct == NOT:
+                return ('NOT', None, logic_operations())
             elif token.struct == ')':
                 pass
             else:
@@ -406,7 +410,7 @@ def parser(tokens: list) -> tuple:
                         if type(result) == str:
                             type_error = "booleano" if struct == BOOL else "número"
                             raise ValueError(f"No se puede asignar un string a un {type_error}")
-
+                    
                     if expression[0] in LOGIC or expression in (TRUE, FALSE):
                         if struct != BOOL:
                             raise ValueError("No se puede asignar un booleano a un número")
@@ -431,6 +435,9 @@ def parser(tokens: list) -> tuple:
         
             if condition == None:
                 return None
+            
+            if tokens == []:
+                SyntaxError("Se esperaba THEN-STATEMENT")
             
             if tokens[0].struct == STATEMENT and tokens[0].value == THEN:
                 token = tokens.pop(0)
@@ -619,6 +626,8 @@ def parser(tokens: list) -> tuple:
             elif token.struct == STATEMENT and token.value == FOR:
                 for_statement()
                 return None
+            elif token.struct == NOT:
+                return ('NOT', None, logic_operations())
             else:
                 tokens.insert(0, token)
                 return logic_operations()
@@ -680,6 +689,8 @@ def evaluate(ast: tuple) -> any:
             return left <= right
         case 'GREATER_OR_EQUAL_THAN':
             return left >= right
+        case 'NOT':
+            return not right
         case 'AND':
             return left and right
         case 'OR':
@@ -693,6 +704,7 @@ def execute(code: str) -> any:
 if __name__ == '__main__':
     file = open('test.txt')
     lines = file.readlines()
+    lines = [line for line in lines if line != '\n']
     num_line = 0
 
     for line in lines:
