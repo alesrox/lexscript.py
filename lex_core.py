@@ -74,9 +74,11 @@ class Token:
         return f"{self.struct}"
 
 # Creamos el token de número, puede tener más de un digito, comprobando si es FLOAT o INT
-def make_number(current_char: str, code: str, positon: int) -> (Token, int):
+def make_number(current_char: str, code: str, position: int) -> (Token, int):
     num = ""
     dot = False
+
+    if current_char == " ": position += 1; current_char = code[position];
     while current_char not in (ENDLINE, COMMENT) and current_char in DIGITS + '.':
         if current_char == '.':
             if dot: break;
@@ -85,11 +87,11 @@ def make_number(current_char: str, code: str, positon: int) -> (Token, int):
         else:
             num += current_char
 
-        positon += 1
-        current_char = code[positon]
+        position += 1
+        current_char = code[position]
 
     token_number = Token(FLOAT, num) if dot else Token(INT, num)
-    return token_number, positon - 1
+    return token_number, position - 1
 
 def make_string(current_char: str, code: str, position: int) -> (Token, int):
     id_str = '"'
@@ -171,36 +173,36 @@ def make_identifier(current_char: str, code: str, position: int) -> (Token, int)
 def lexer(code: str) -> list:
     code += ";"
     tokens = []
-    positon = 0
-    current_char = code[positon]
+    position = 0
+    current_char = code[position]
 
     while current_char not in (ENDLINE, COMMENT):
         if current_char in ' \t\n':
-            positon += 1
-            current_char = code[positon]
+            position += 1
+            current_char = code[position]
             continue
         elif current_char == "\\":
-            positon += 1
-            current_char = code[positon]
+            position += 1
+            current_char = code[position]
             if current_char.lower() == "n":
                 print("")
             else:
-                positon -= 1
+                position -= 1
                 current_char[code]
         elif current_char in DIGITS:
-            token_number, positon = make_number(current_char, code, positon)
+            token_number, position = make_number(current_char, code, position)
             tokens.append(token_number)
         elif current_char in LETTERS:
-            token, positon = make_identifier(current_char, code, positon)
+            token, position = make_identifier(current_char, code, position)
             tokens.append(token)
         elif current_char == '"':
-            token_string, positon = make_string(current_char, code, positon)
+            token_string, position = make_string(current_char, code, position)
             tokens.append(token_string)
         elif current_char == '=':
-            new_positon = positon + 1
-            next_char = code[new_positon]
+            new_position = position + 1
+            next_char = code[new_position]
             if next_char == '=':
-                positon = new_positon
+                position = new_position
                 current_char = next_char
                 tokens.append(Token(COMPARISON))
             else:
@@ -208,14 +210,27 @@ def lexer(code: str) -> list:
         elif current_char == '+':
             tokens.append(Token(ADD))
         elif current_char == '-':
-            new_positon = positon + 1
-            next_char = code[new_positon]
-            if next_char == '>':
-                positon = new_positon
-                current_char = next_char
-                tokens.append(Token(KEYWORD, ALT_DOES))
-            else:
-                tokens.append(Token(SUB))
+            try:
+                new_position = position + 1
+                next_char = code[new_position]
+                if next_char == '>':
+                    position = new_position
+                    current_char = next_char
+                    tokens.append(Token(KEYWORD, ALT_DOES))
+                elif tokens[-1].struct in (FLOAT, INT):
+                    tokens.append(Token(SUB))
+                else:
+                    position += 1
+                    current_char = code[position]
+                    token_number, position = make_number(current_char, code, position)
+                    token_number.value = '-' + token_number.value
+                    tokens.append(token_number)
+            except IndexError:
+                position += 1
+                current_char = code[position]
+                token_number, position = make_number(current_char, code, position)
+                token_number.value = '-' + token_number.value
+                tokens.append(token_number)
         elif current_char == '*':
             tokens.append(Token(MUL))
         elif current_char == '/':
@@ -223,10 +238,10 @@ def lexer(code: str) -> list:
         elif current_char == '^':
             tokens.append(Token(POW))
         elif current_char == '!':
-            new_positon = positon + 1
-            next_char = code[new_positon]
+            new_position = position + 1
+            next_char = code[new_position]
             if next_char == '=':
-                positon = new_positon
+                position = new_position
                 current_char = next_char
                 tokens.append(Token(NOT_EQUAL))
         elif current_char == '<':
@@ -242,8 +257,8 @@ def lexer(code: str) -> list:
         else:
             raise SyntaxError(f"Unexpected caracter: \'{current_char}\'")
         
-        positon += 1
-        current_char = code[positon]
+        position += 1
+        current_char = code[position]
     
     return tokens
 

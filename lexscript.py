@@ -1,6 +1,6 @@
+# Interpreter
 import sys
 from lex_core import *
-
 
 try:
     file = open(sys.argv[1])
