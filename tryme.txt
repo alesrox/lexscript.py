@@ -5,7 +5,7 @@ string world = "World"
 hello + world
 
 \n # Salto de linea
-bool boolean = 1 > 2
+bool boolean = 1 ` 2
 "Boolean variable value:"
 boolean
 
