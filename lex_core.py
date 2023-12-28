@@ -28,12 +28,14 @@ MUL          = 'MUL'
 DIV          = 'DIV'
 POW          = 'POWER'
 # LOGIC TOKENS
-AND_OPETATOR = 'AND'
-OR_OPERATOR  = 'OR'
+AND          = 'AND'
+OR           = 'OR'
 COMPARISON   = 'COMPARISION'
 NOT_EQUAL    = 'NOT_EQUAL'
-LOWERTHAN    = 'LOWER_THAN'
-GREATERTHAN  = 'GREATER_THAN'
+LOWER_THAN   = 'LOWER_THAN'
+LOWER_OR_EQUAL = 'LOWER_OR_EQUAL_THAN'
+GREATER_THAN = 'GREATER_THAN'
+GREATER_OR_EQUAL = 'GREATER_OR_EQUAL_THAN'
 # STATEMENTS
 IF           = 'IF'
 THEN         = 'THEN'
@@ -42,12 +44,7 @@ ELSE         = 'ELSE'
 WHILE        = 'WHILE'
 FOR          = 'FOR'
 TO           = 'TO'
-
-LOGIC = (COMPARISON, NOT_EQUAL, LOWERTHAN, GREATERTHAN, AND_OPETATOR, OR_OPERATOR)
-LOGIC_COMPARISONS = (COMPARISON, NOT_EQUAL, LOWERTHAN, GREATERTHAN)
-OPERATION_TOKENS = (ADD, SUB, MUL, DIV, POW)
-
-# Keywords
+# KEYWORDS
 FUNCTION   = 'FUNCTION'
 DOES       = 'DOES'
 ALT_DOES   = '->'
@@ -57,12 +54,13 @@ BOOL       = 'BOOL'
 TRUE       = 'True'
 FALSE      = 'False'      
 NOT        = 'NOT'
-AND        = AND_OPETATOR.lower()
-OR         = OR_OPERATOR.lower()
-KEYWORDS = (FUNCTION, NUMBER, BOOL, TRUE, FALSE, NOT, AND, OR)
 
-variables = {}
-aux_variables = {}
+# Special Groups
+LOGIC = (AND, OR, COMPARISON, NOT_EQUAL, LOWER_THAN, GREATER_THAN, LOWER_OR_EQUAL, GREATER_OR_EQUAL)
+LOGIC_COMPARISONS = (COMPARISON, NOT_EQUAL, LOWER_THAN, GREATER_THAN, LOWER_OR_EQUAL, GREATER_OR_EQUAL)
+
+global_variables = {}
+local_variables = {}
 
 class Token:
     def __init__(self, struct, value = None):
@@ -94,19 +92,19 @@ def make_number(current_char: str, code: str, position: int) -> (Token, int):
     return token_number, position - 1
 
 def make_string(current_char: str, code: str, position: int) -> (Token, int):
-    id_str = '"'
+    string = '"'
     position += 1
     current_char = code[position]
 
     while current_char not in (ENDLINE, COMMENT):
-        id_str += current_char
+        string += current_char
         if current_char == '"': break
 
         position += 1
         current_char = code[position]
 
-    if id_str[0] == '"' and id_str[-1] == '"':
-        return Token(STRING.upper(), id_str[1:-1]), position
+    if string[0] == '"' and string[-1] == '"':
+        return Token(STRING.upper(), string[1:-1]), position
     else:
         raise SyntaxError('Expected a \'"\'')
 
@@ -121,51 +119,54 @@ def make_identifier(current_char: str, code: str, position: int) -> (Token, int)
         current_char = code[position]
 
     position -= 1
+    id_str_upper = id_str.upper()
 
     # VARIABLES
-    if id_str.upper() == NUMBER:
+    if id_str_upper == NUMBER:
         return Token(KEYWORD, NUMBER), position
-    elif id_str.upper() == STRING:
+    elif id_str_upper == STRING:
         return Token(KEYWORD, STRING), position
-    elif id_str.upper() == BOOL:
+    elif id_str_upper == BOOL:
         return Token(KEYWORD, BOOL), position
     elif id_str == TRUE or id_str == FALSE:
         return Token(BOOLEAN, id_str), position
-    elif id_str.upper() == FUNCTION:
+    elif id_str_upper == FUNCTION:
         return Token(KEYWORD, FUNCTION), position
-    elif id_str.upper() == DOES:
+    elif id_str_upper == DOES:
         return Token(KEYWORD, DOES), position
 
     
     # LOGIC OPERATORS
-    if id_str == AND:
-        return Token(AND_OPETATOR), position
-    elif id_str == OR:
-        return Token(OR_OPERATOR), position
+    if id_str_upper == AND:
+        return Token(AND), position
+    elif id_str_upper == OR:
+        return Token(OR), position
     
     # STATEMENT
-    if id_str.upper() == IF:
+    if id_str_upper == IF:
         return Token(STATEMENT, IF), position
-    elif id_str.upper() == THEN:
+    elif id_str_upper == THEN:
         return Token(STATEMENT, THEN), position
-    elif id_str.upper() == ELSE:
+    elif id_str_upper == ELSE:
         return Token(STATEMENT, ELSE), position
-    elif id_str.upper() == ELIF:
+    elif id_str_upper == ELIF:
         return Token(STATEMENT, ELIF), position
 
     # WHILE
-    if id_str.upper() == WHILE:
+    if id_str_upper == WHILE:
         return Token(STATEMENT, WHILE), position
     
     # FOR
-    if id_str.upper() == FOR:
+    if id_str_upper == FOR:
         return Token(STATEMENT, FOR), position
-    elif id_str.upper() == TO:
+    elif id_str_upper == TO:
         return Token(STATEMENT, TO), position
     
 
     # DEAFULT
     return Token(IDENTIFIER, id_str), position
+
+def next_char(code: str, position: int): return code[position+1], position+1
 
 # LEXER <-> ANÁLISIS SINTÁCTICO
 # Recorre el codigo para traducirlo a tokens
@@ -181,14 +182,9 @@ def lexer(code: str) -> list:
             position += 1
             current_char = code[position]
             continue
-        elif current_char == "\\":
-            position += 1
-            current_char = code[position]
-            if current_char.lower() == "n":
-                print("")
-            else:
-                position -= 1
-                current_char[code]
+        elif current_char == "\\" and code[position+1] == 'n':
+            current_char, position = next_char(code, position)
+            print("")
         elif current_char in DIGITS:
             token_number, position = make_number(current_char, code, position)
             tokens.append(token_number)
@@ -199,11 +195,8 @@ def lexer(code: str) -> list:
             token_string, position = make_string(current_char, code, position)
             tokens.append(token_string)
         elif current_char == '=':
-            new_position = position + 1
-            next_char = code[new_position]
-            if next_char == '=':
-                position = new_position
-                current_char = next_char
+            if code[position+1] == '=':
+                current_char, position = next_char(code, position)
                 tokens.append(Token(COMPARISON))
             else:
                 tokens.append(Token(EQ))
@@ -211,23 +204,18 @@ def lexer(code: str) -> list:
             tokens.append(Token(ADD))
         elif current_char == '-':
             try:
-                new_position = position + 1
-                next_char = code[new_position]
-                if next_char == '>':
-                    position = new_position
-                    current_char = next_char
+                if code[position+1] == '>':
+                    current_char, position = next_char(code, position)
                     tokens.append(Token(KEYWORD, ALT_DOES))
                 elif tokens[-1].struct in (FLOAT, INT):
                     tokens.append(Token(SUB))
                 else:
-                    position += 1
-                    current_char = code[position]
+                    current_char, position = next_char(code, position)
                     token_number, position = make_number(current_char, code, position)
                     token_number.value = '-' + token_number.value
                     tokens.append(token_number)
             except IndexError:
-                position += 1
-                current_char = code[position]
+                current_char, position = next_char(code, position)
                 token_number, position = make_number(current_char, code, position)
                 token_number.value = '-' + token_number.value
                 tokens.append(token_number)
@@ -237,17 +225,21 @@ def lexer(code: str) -> list:
             tokens.append(Token(DIV))
         elif current_char == '^':
             tokens.append(Token(POW))
-        elif current_char == '!':
-            new_position = position + 1
-            next_char = code[new_position]
-            if next_char == '=':
-                position = new_position
-                current_char = next_char
-                tokens.append(Token(NOT_EQUAL))
+        elif current_char == '!' and next_char(code, position) == '=':
+            current_char, position = next_char(code, position)
+            tokens.append(Token(NOT_EQUAL))
         elif current_char == '<':
-            tokens.append(Token(LOWERTHAN))
+            if code[position+1] == '=':
+                current_char, position = next_char(code, position)
+                tokens.append(Token(LOWER_OR_EQUAL))
+            else:
+                tokens.append(Token(LOWER_THAN))
         elif current_char == '>':
-            tokens.append(Token(GREATERTHAN))
+            if code[position+1] == '=':
+                current_char, position = next_char(code, position)
+                tokens.append(Token(GREATER_OR_EQUAL))
+            else:
+                tokens.append(Token(GREATER_THAN))
         elif current_char == "(":
             tokens.append(Token(LEFTPAREN))
         elif current_char == ")":
@@ -257,8 +249,7 @@ def lexer(code: str) -> list:
         else:
             raise SyntaxError(f"Unexpected caracter: \'{current_char}\'")
         
-        position += 1
-        current_char = code[position]
+        current_char, position = next_char(code, position)
     
     return tokens
 
@@ -268,13 +259,13 @@ def lexer(code: str) -> list:
 #       -> Suma y Resta -> Multiplicación y Division -> Potencias 
 def parser(tokens: list) -> tuple:
     def AST(tokens: list, in_function: bool = False) -> tuple:
-        global variables
-        global aux_variables
+        global global_variables
+        global local_variables
 
         if in_function:
-            ast_variables = aux_variables
+            ast_variables = local_variables
         else:
-            ast_variables = variables
+            ast_variables = global_variables
 
         if not tokens:
             return None
@@ -284,7 +275,7 @@ def parser(tokens: list) -> tuple:
             nonlocal tokens
             left = logic_comparisons()
 
-            while tokens and tokens[0].struct in (AND_OPETATOR, OR_OPERATOR):
+            while tokens and tokens[0].struct in (AND, OR):
                 operator = tokens.pop(0)
                 right = logic_comparisons()
                 left = (operator.struct, left, right)
@@ -430,7 +421,7 @@ def parser(tokens: list) -> tuple:
             else:
                 raise SyntaxError("Se esperaba un identificador para asignación")
             
-            #print(variables)
+            #print(gloabal_variables, local_variables)
             return identifier_token.value
         
         # IF Statement
@@ -519,7 +510,7 @@ def parser(tokens: list) -> tuple:
             function_body = []
             function_arguments = []
 
-            if function_name.struct == IDENTIFIER and function_name not in variables:
+            if function_name.struct == IDENTIFIER and function_name not in global_variables:
                 if tokens.pop(0).struct == LEFTPAREN:
                     while tokens:
                         arg = tokens.pop(0)
@@ -567,14 +558,14 @@ def parser(tokens: list) -> tuple:
             while tokens:
                 arg = tokens.pop(0)
                 if arg.struct == IDENTIFIER:
-                    if arg.value in variables and arg.value != name_function:
+                    if arg.value in global_variables and arg.value != name_function:
                         try:
-                            if variables[arg.value][0] == FUNCTION:
+                            if global_variables[arg.value][0] == FUNCTION:
                                 function_arguments.append(execute_function(arg.value))
                             else:
-                                function_arguments.append(variables[arg.value])
+                                function_arguments.append(global_variables[arg.value])
                         except Exception:
-                            function_arguments.append(variables[arg.value])
+                            function_arguments.append(global_variables[arg.value])
                     else:
                         raise ValueError(f"Variable \'{arg.value}\' no definida")
                 elif arg.struct in (INT, FLOAT, BOOLEAN):
@@ -586,12 +577,12 @@ def parser(tokens: list) -> tuple:
                 else:
                     raise SyntaxError(f"Invalid argument in function calling: {arg.value}")
             
-            arguments = variables[name_function][1]
+            arguments = global_variables[name_function][1]
             if len(function_arguments) == len(arguments):
                 for i in range(len(function_arguments)):
-                    aux_variables[arguments[i]] = function_arguments[i]
+                    local_variables[arguments[i]] = function_arguments[i]
                 
-                return AST(variables[name_function][2].copy(), in_function=True)
+                return AST(global_variables[name_function][2].copy(), in_function=True)
             else:
                 raise TypeError("Invalid numbers of arguments on function")
             
@@ -685,11 +676,14 @@ def evaluate(ast: tuple) -> any:
             return left < right
         case 'GREATER_THAN':
             return left > right
+        case 'LOWER_OR_EQUAL_THAN':
+            return left <= right
+        case 'GREATER_OR_EQUAL_THAN':
+            return left >= right
         case 'AND':
             return left and right
         case 'OR':
             return left or right
-
 
 def execute(code: str) -> any:
     tokens = lexer(code)
