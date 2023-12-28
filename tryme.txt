@@ -1,17 +1,18 @@
-# THIS_IS_A_COMENT
+# THIS IS A COMENT
 # VAR TYPES AND IF STATEMENT
 string hello = "Hello "
 string world = "World"
 hello + world
 
 \n # Salto de linea
-bool boolean = 1 ` 2
+bool boolean = 1 > 2
 "Boolean variable value:"
 boolean
 
 \n # Salto de linea
 var num = 3
-num = if boolean then num*2 else num^2
+var negative_num = -1 
+num = if boolean then num * 2 else negative_num ^ 2
 "Num variable value:"
 num
 
