@@ -1,10 +1,10 @@
 # How to run a script
 ```bash
-python3 lex_core.py <file>
+python3 lexscript.py <file>
 ```
 example:
 ```bash
-python3 lex_core.py test.txt
+python3 lexscript.py tryme.txt
 ```
 
 # Example of Code
