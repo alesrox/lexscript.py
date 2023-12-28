@@ -372,7 +372,7 @@ def parser(tokens: list) -> tuple:
                 else:
                     raise SyntaxError("Sintaxis invalida")
             elif token.struct == NOT:
-                return ('NOT', None, logic_operations())
+                return (NOT, None, logic_operations())
             elif token.struct == ')':
                 pass
             else:
@@ -627,7 +627,7 @@ def parser(tokens: list) -> tuple:
                 for_statement()
                 return None
             elif token.struct == NOT:
-                return ('NOT', None, logic_operations())
+                return (NOT, None, logic_operations())
             else:
                 tokens.insert(0, token)
                 return logic_operations()

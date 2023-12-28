@@ -17,7 +17,7 @@ for line in lines:
     for subline in sublines:
         try:
             result = execute(subline)
-            if result:
+            if not result == None:
                 print(result, end=" ")
         except Exception as error:
             print(f"\n{type(error).__name__} on line {num_line}: {error}")
