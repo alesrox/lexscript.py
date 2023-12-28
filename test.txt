@@ -1,0 +1,5 @@
+function sum(a,b) does a+b
+function sub(a,b) -> a-b
+function mul(a,b) a*b
+
+if sum(1,1) == 4 then 4 else 5
