@@ -8,7 +8,8 @@ python3 lex_core.py test.txt
 ```
 
 # Example of Code
-```
+Code:
+```javascript
 # WHILE STATEMENT
 var test = 1
 while test < 4 then test = test + 1
@@ -28,6 +29,12 @@ function sum(a,b) a+b
 "Result of sum function:"
 sum(example, test)
 ```
+Output:
+```bash
+Var test after while loop: 4 
+Var example after for loop: 10 
+Result of sum function: 14
+```
 
 # AST
 Operator AND -> Operator OR -> Logical Comparisons -> Addition and Subtraction -> Multiplication and Division -> Power 
@@ -38,16 +45,18 @@ BOOLEAN -> bool true_or_false = `value`
 STRING -> string hi = `"Hello World"`
 
 # IF Syntax
-If `condition` then `expresion` elif `condition` then `expresion` else `expresion`
+if `condition` then `expresion` elif `condition` then `expresion` else `expresion`
 
 # While Syntax
-While `condition` then `expresion`
+while `condition` then `expresion`
 
 # For Syntax
-variable init on 0 -> For `variable` to `condition` then `expresion` 
-variable don't init on 0 -> For `variable` = `value` to `condition` then `expresion`
+variable init on 0 -> for `variable` to `condition` then `expresion` 
+variable don't init on 0 -> for `variable` = `value` to `condition` then `expresion`
 
 # Define a functions - Three methods
+```javascript
 function sum(a,b) does a+b
 function sub(a,b) -> a-b
 function mul(a,b) a*b
+```
