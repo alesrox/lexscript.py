@@ -5,7 +5,7 @@ from lex_core import *
 try:
     file = open(sys.argv[1])
 except IndexError:
-    file = open('tryme.txt')
+    file = open('tryme.lexscript')
 
 lines = file.readlines()
 num_line = 0

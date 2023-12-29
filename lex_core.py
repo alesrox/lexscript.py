@@ -217,12 +217,12 @@ def lexer(code: str) -> list:
                 else:
                     current_char, position = next_char(code, position)
                     token_number, position = make_number(current_char, code, position)
-                    token_number.value = '-' + token_number.value
+                    token_number.value = -1 * token_number.value
                     tokens.append(token_number)
             except IndexError:
                 current_char, position = next_char(code, position)
                 token_number, position = make_number(current_char, code, position)
-                token_number.value = '-' + token_number.value
+                token_number.value = -1 * token_number.value
                 tokens.append(token_number)
         elif current_char == '*':
             tokens.append(Token(MUL))
@@ -486,7 +486,7 @@ def parser(tokens: list) -> tuple:
                     elif tokens[0].struct == IDENTIFIER and tokens[0].value in bult_in_function:
                         expression = execute_builtin_funcs(tokens.pop(0).value)
                     elif tokens[0].struct == IDENTIFIER: 
-                        if tokens[0].struct not in ast_variables: 
+                        if tokens[0].value not in ast_variables: 
                             raise ValueError(f"Non defined variable: \'{token.value}\'")
                         try:
                             if tokens[1].struct == LEFTPAREN:
@@ -668,14 +668,17 @@ def parser(tokens: list) -> tuple:
                 if tokens[0].struct == LEFTPAREN:
                     return execute_function(token.value)
 
-                if type(ast_variables[token.value][0]) == tuple:
+                if type(ast_variables[token.value]) == tuple:
                     if ast_variables[token.value][0] == FUNCTION:
                         return ast_variables[token.value]
             
                 if tokens[0].struct == EQ:
                     tokens.insert(0, token)
-                    isBoolean = ast_variables[token.value][0] in LOGIC or type(ast_variables[token.value]) == bool
-                    assignment(BOOL if isBoolean else NUMBER)
+                    type_strcut = type(evaluate(ast_variables[token.value]))
+                    if type_strcut == str:
+                        assignment(STRING)
+                    else:
+                        assignment(BOOL if type_strcut == bool else NUMBER)
                 else:
                     tokens.insert(0, token)
                     return logic_operations()
@@ -767,7 +770,7 @@ def debug(code: str) -> any:
 # Only for testing
 if __name__ == '__main__':
     try:
-        file = open('test.txt')
+        file = open('test.lexscript')
         lines = file.readlines()
         lines = [line for line in lines if line != '\n']
     except:
