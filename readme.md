@@ -65,3 +65,14 @@ function sum(a,b) does a+b
 function sub(a,b) -> a-b
 function mul(a,b) a*b
 ```
+
+# Bult-in Functions
+- print()         -> Print all the arguments in a line
+- println()       -> Print all the arguments in diferents lines
+- input()         -> return the user input
+- input_num()     -> return the user input as a number
+- clear()         -> clean the terminal
+- exit()          -> close the program
+- is_a_number()   -> return true if the arguments is a number
+- is_a_string()   -> return true if the arguments is a string
+- is_a_function() -> return true if the arguments is a function
