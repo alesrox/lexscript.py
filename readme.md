@@ -4,7 +4,7 @@ python3 lexscript.py <file>
 ```
 example:
 ```bash
-python3 lexscript.py tryme.txt
+python3 lexscript.py tryme.lexscript
 ```
 
 # Example of Code
