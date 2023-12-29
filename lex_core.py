@@ -625,7 +625,7 @@ def parser(tokens: list) -> tuple:
                 case 'input':
                     return input(args[0]) if args else input()
                 case 'input_num':
-                    return int(input(args[0])) if args else int(input)
+                    return float(input(args[0])) if args else float(input())
                 case 'clear':
                     os.system('cls' if os.name == 'nt' else 'clear')
                 case 'exit':
