@@ -610,8 +610,8 @@ def parser(tokens: list) -> tuple:
                 if tokens[0].struct == RIGHTPAREN: break
                 arg = logic_operations()
                 args.append(evaluate(arg))
-                if tokens.pop(0).value != COMMA:
-                    break
+                if tokens == []: break
+                if tokens.pop(0).value != COMMA: break
             
             match name_function:
                 case 'print':
@@ -625,7 +625,12 @@ def parser(tokens: list) -> tuple:
                 case 'input':
                     return input(args[0]) if args else input()
                 case 'input_num':
-                    return float(input(args[0])) if args else float(input())
+                    try:
+                        ans = input(args[0]) if args else input()
+                        return float(ans)
+                    except ValueError:
+                        print(args)
+                        raise ValueError(f"Impossible convert '{ans}' to a number")
                 case 'clear':
                     os.system('cls' if os.name == 'nt' else 'clear')
                 case 'exit':
@@ -751,31 +756,33 @@ def execute(code: str) -> any:
     ast = parser(tokens)
     return evaluate(ast)
 
+def debug(code: str) -> any:
+    tokens = lexer(code)
+    print(f'- Tokens: {tokens}')
+    ast = parser(tokens)
+    print(f'- AST: {ast}')
+    result = evaluate(ast)
+    print(f'- Result: {result}\n')
+
 # Only for testing
 if __name__ == '__main__':
-    file = open('test.txt')
-    lines = file.readlines()
-    lines = [line for line in lines if line != '\n']
+    try:
+        file = open('test.txt')
+        lines = file.readlines()
+        lines = [line for line in lines if line != '\n']
+    except:
+        lines = []
+
     num_line = 0
 
     for line in lines:
         num_line += 1
         print(f"{num_line}: {line}")
-        tokens = lexer(line)
-        print(f'- Tokens: {tokens}')
-        ast = parser(tokens)
-        print(f'- AST: {ast}')
-        result = evaluate(ast)
-        print(f'- Result: {result}\n')
+        debug(line)
 
     try:
         while True:
             code = input('>>> ')
-            tokens = lexer(code)
-            print(f'- Tokens: {tokens}')
-            ast = parser(tokens)
-            print(f'- AST: {ast}')
-            result = evaluate(ast)
-            print(f'- Result: {result}\n')
+            debug(code)
     except KeyboardInterrupt:
         print("\nClosing program...")
