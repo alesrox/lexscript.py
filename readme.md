@@ -1,3 +1,32 @@
+# Lexscript
+Strongly and static typed langague based on python, is under development.
+At the moment it's made with python, perhabs in the future the code will be migratec at javascript.
+
+# Example of Code
+Code:
+```javascript
+# WHILE STATEMENT
+var test = 1
+while test < 4 then test = test + 1
+println("Var test after while loop:", test)
+
+# FOR STATEMENT
+var example = 0
+for i to 4 then example = example + i
+println("Var example after for loop:", example)
+
+# A FUNCTION
+function sum(a,b) a+b
+"Result of sum function:"
+sum(example, test)
+```
+Output:
+```
+Var test after while loop: 4 
+Var example after for loop: 10 
+Result of sum function: 14
+```
+
 # How to run a script
 ```bash
 python3 lexscript.py <file>
@@ -7,42 +36,10 @@ example:
 python3 lexscript.py tryme.lexscript
 ```
 
-# Example of Code
-Code:
-```javascript
-# WHILE STATEMENT
-var test = 1
-while test < 4 then test = test + 1
-"Var test after while loop:"
-test
-
-\n # Salto de linea
-# FOR STATEMENT
-var example = 0
-for i to 4 then example = example + i
-"Var example after for loop:"
-example
-
-\n # Salto de linea
-# A FUNCTION
-function sum(a,b) a+b
-"Result of sum function:"
-sum(example, test)
-```
-Output:
-```bash
-Var test after while loop: 4 
-Var example after for loop: 10 
-Result of sum function: 14
-```
-
-# AST Descending
-1. Operator AND
-2. Operator OR
-3. Logical Comparisons 
-4. Addition and Subtraction 
-5. Multiplication and Division 
-6. Power 
+# How to install language support on Visual Studio Code
+1. Open command menu on Visual Studio: `Ctrl+Shift+P` on Linux and Windows or `Cmd+Shift+P` on MacOS
+2. Write Extensions: Install from VSIX
+3. Select lexscript-language-sopport.vsix
 
 # Variables
 - FLOAT | INT -> var num = `value`
