@@ -63,6 +63,7 @@ LOGIC_COMPARISONS = (COMPARISON, NOT_EQUAL, LOWER_THAN, GREATER_THAN, LOWER_OR_E
 global_variables = {}
 local_variables = {}
 bult_in_function = ['print', 'println', 'input', 'input_num', 'clear', 'exit', 'is_a_number', 'is_a_string', 'is_a_function']
+global_aux_type = None
 
 class Token:
     def __init__(self, struct, value = None):
@@ -208,22 +209,21 @@ def lexer(code: str) -> list:
         elif current_char == '+':
             tokens.append(Token(ADD))
         elif current_char == '-':
-            try:
-                if code[position+1] == '>':
-                    current_char, position = next_char(code, position)
-                    tokens.append(Token(KEYWORD, ALT_DOES))
-                elif tokens[-1].struct in (FLOAT, INT, IDENTIFIER):
-                    tokens.append(Token(SUB))
-                else:
-                    current_char, position = next_char(code, position)
-                    token_number, position = make_number(current_char, code, position)
-                    token_number.value = -1 * token_number.value
-                    tokens.append(token_number)
-            except IndexError:
+            if code[position+1] == '>':
                 current_char, position = next_char(code, position)
-                token_number, position = make_number(current_char, code, position)
-                token_number.value = -1 * token_number.value
-                tokens.append(token_number)
+                tokens.append(Token(KEYWORD, ALT_DOES))
+                continue
+
+            if position > 0:
+                if tokens[-1].struct in (FLOAT, INT, IDENTIFIER):
+                    current_char, position = next_char(code, position)
+                    tokens.append(Token(SUB))
+                    continue
+
+            current_char, position = next_char(code, position)
+            token_number, position = make_number(current_char, code, position)
+            token_number.value = -1 * token_number.value
+            tokens.append(token_number)
         elif current_char == '*':
             tokens.append(Token(MUL))
         elif current_char == '/':
@@ -343,30 +343,26 @@ def parser(tokens: list) -> tuple:
                 if tokens != []:
                     if tokens[0].struct == EQ: # check if it have to assigning itself
                         tokens.insert(0, token)
-                        isBoolean = ast_variables[token.value][0] in LOGIC or ast_variables[token.value] in (TRUE, FALSE)
-                        assignment(BOOL if isBoolean else NUMBER)
-                        return ast_variables[token.value]
+                        assignment(ast_variables[token.value][0])
+                        return ast_variables[token.value][1]
                     elif token.value in ast_variables: # check if it's calling itself
-                        if type(ast_variables[token.value]) == tuple:
-                            if ast_variables[token.value][0] == FUNCTION.upper(): # if it's a functions, execute itself
-                                if tokens[0].struct == LEFTPAREN:
-                                    return execute_function(token.value)
-                                else:
-                                    return ast_variables[token.value]
-                            
-                        return ast_variables[token.value]
+                        if ast_variables[token.value][0] == FUNCTION.upper(): # if it's a functions, execute itself
+                            if tokens[0].struct == LEFTPAREN:
+                                return execute_function(token.value)
+                        
+                        return ast_variables[token.value][1]
                     # Check if it's a bult in function
                     elif token.value in bult_in_function:
                         return execute_builtin_funcs(token.value)
                     else:
                         raise ValueError(f"Non defined variable: \'{token.value}\'")
                 elif token.value in ast_variables:
-                    return ast_variables[token.value]
+                    return ast_variables[token.value][1]
                 else:
                     raise ValueError(f"Non defined variable: \'{token.value}\'")
             elif token.struct == KEYWORD:
                 var_name = assignment(token.value)
-                return ast_variables[var_name]
+                return ast_variables[var_name][1]
             elif token.struct == '(':
                 result = logic_operations()
                 tt = tokens.pop(0)
@@ -451,11 +447,12 @@ def parser(tokens: list) -> tuple:
                 token = tokens.pop(0)
                 if token.struct == EQ:
                     value = logic_operations() 
-                    ast_variables[for_variable.value] = value 
+                    if type(evaluate(value)) not in (float, int): raise ValueError(f"{for_statement.value} expected to be a number")
+                    ast_variables[for_variable.value] = (NUMBER, value) 
                     if tokens.pop(0).value != TO: raise SyntaxError("TO STATEMENT was expected")
                 elif token.struct == STATEMENT and token.value == TO:
-                    value = '0'
-                    ast_variables[for_variable.value] = value
+                    value = 0
+                    ast_variables[for_variable.value] = (NUMBER, 0)
                 else:
                     raise SyntaxError("Invalid for statement syntax")
 
@@ -468,7 +465,7 @@ def parser(tokens: list) -> tuple:
                 for i in range(for_from, for_to):
                     if i == for_to: break
                     for_body = aux_for_body.copy()
-                    ast_variables[for_variable.value] = i
+                    ast_variables[for_variable.value] = (NUMBER, i)
                     AST(for_body)
             else:
                 raise SyntaxError("THEN STATEMENT was expected")
@@ -497,7 +494,7 @@ def parser(tokens: list) -> tuple:
                             expression = logic_operations()
                     else:
                         expression = logic_operations()
-                        
+                    
                     result = evaluate(expression)
                     if struct == STRING and type(result) != str:
                         type_error = "número" if type(result) == int else "booleano"
@@ -513,7 +510,7 @@ def parser(tokens: list) -> tuple:
                         if struct != BOOL and type(result) == bool:
                             raise ValueError("Can't assign a boolean to a number")
                         
-                    ast_variables[identifier_token.value] = expression
+                    ast_variables[identifier_token.value] = (struct, expression)
                 else:
                     raise SyntaxError("An equal sign '=' was expected for assignment")
             else:
@@ -534,15 +531,18 @@ def parser(tokens: list) -> tuple:
                     while tokens:
                         arg = tokens.pop(0)
                         if arg.struct == IDENTIFIER:
-                            function_arguments.append(arg.value)
+                            function_arguments.append((NUMBER, arg.value))
                         elif arg.struct == KEYWORD and arg.value == COMMA:
                             continue
                         elif arg.struct == RIGHTPAREN:
                             break
                         else:
                             raise SyntaxError(f"Invalid argument in function definition: {arg.value}")
-
-                    if tokens[0].value in (DOES, ALT_DOES): tokens.pop(0)
+                    
+                    try:
+                        if tokens[0].value in (DOES, ALT_DOES): tokens.pop(0)
+                    except IndexError:
+                        raise SyntaxError("Empty function")
 
                     while tokens:
                         token = tokens.pop(0)
@@ -567,7 +567,7 @@ def parser(tokens: list) -> tuple:
                     ast_variables[function_name] = (FUNCTION.upper(), function_arguments, function_body)
                 elif token.struct == EQ:
                     token = tokens.pop(0)
-                    if token.struct == IDENTIFIER and token.value in global_variables and type(global_variables[token.value]) == tuple:
+                    if token.struct == IDENTIFIER and token.value in global_variables:
                         if global_variables[token.value][0] == FUNCTION:
                             global_variables[function_name] = global_variables[token.value]
                     else:
@@ -593,7 +593,7 @@ def parser(tokens: list) -> tuple:
             arguments = global_variables[name_function][1]
             if len(function_arguments) == len(arguments):
                 for i in range(len(function_arguments)):
-                    local_variables[arguments[i]] = function_arguments[i]
+                    local_variables[arguments[i][1]] = (arguments[i][0], function_arguments[i])
                 
                 return AST(global_variables[name_function][2].copy(), in_function=True)
             else:
@@ -620,7 +620,9 @@ def parser(tokens: list) -> tuple:
                     return None
                 case 'println':
                     for arg in args:
-                        print(f"{arg}")
+                        print(f"{arg}", end=" ")
+                    
+                    print("\n", end="")
                     return None
                 case 'input':
                     return input(args[0]) if args else input()
@@ -655,7 +657,6 @@ def parser(tokens: list) -> tuple:
         # Main parser logic
         while tokens:
             token = tokens.pop(0)
-
             # Declarate variables
             if token.struct == KEYWORD and token.value == FUNCTION:
                 define_function()
@@ -668,17 +669,12 @@ def parser(tokens: list) -> tuple:
                 if tokens[0].struct == LEFTPAREN:
                     return execute_function(token.value)
 
-                if type(ast_variables[token.value]) == tuple:
-                    if ast_variables[token.value][0] == FUNCTION:
-                        return ast_variables[token.value]
+                if ast_variables[token.value][0] == FUNCTION:
+                    return ast_variables[token.value]
             
                 if tokens[0].struct == EQ:
                     tokens.insert(0, token)
-                    type_strcut = type(evaluate(ast_variables[token.value]))
-                    if type_strcut == str:
-                        assignment(STRING)
-                    else:
-                        assignment(BOOL if type_strcut == bool else NUMBER)
+                    assignment(ast_variables[token.value][0])
                 else:
                     tokens.insert(0, token)
                     return logic_operations()

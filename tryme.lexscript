@@ -2,36 +2,29 @@
 # VAR TYPES AND IF STATEMENT
 string hello = "Hello "
 string world = "World"
-hello + world
+println(hello + world)
 
-\n # Salto de linea
 bool boolean = 1 > 2
-"Boolean variable value:"
-boolean
+println("Boolean variable value: ", boolean)
 
-\n # Salto de linea
 var num = 3
 var negative_num = -1 
 num = if boolean then num * 2 else negative_num ^ 2
-"Num variable value:"
-num
+println("Num variable value: ", num)
 
-\n # Salto de linea
 # WHILE STATEMENT
 var test = 1
 while test < 4 then test = test + 1
-"Var test after while loop:"
-test
+println("Var test after while loop: ", test)
 
-\n # Salto de linea
 # FOR STATEMENT
 var example = 0
 for i to 4 then example = example + i
-"Var example after for loop:"
-example
+println("Var example after for loop: ", example)
 
-\n # Salto de linea
-# A FUNCTION
-function sum(a,b) a+b
-"Result of sum function:"
-sum(example, test)
+# FUNCTIONS
+function sum(a, b) does a + b
+print("Result of sum function:", sum(example, test))
+
+function sub(a, b) -> a - b
+function mul(a, b) a * b
