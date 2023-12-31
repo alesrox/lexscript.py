@@ -19,12 +19,36 @@ println("Var test after while loop: ", test)
 
 # FOR STATEMENT
 var example = 0
-for i to 4 then example = example + i
+for i = 1 to 4 then example = example + i
 println("Var example after for loop: ", example)
+
+for i to 4 then 
+    if i == 4 then 
+        println(i) 
+    else
+        if i == 0 then
+            print("Start: ")
+        else
+            print(i, ", ")
+        end
+    end
+end
+println("Drawing a square: ")
+for i to 4 then
+    for j to 4 then
+        print("* ")
+    end
+    println(" ")
+end
 
 # FUNCTIONS
 function sum(a, b) does a + b
-print("Result of sum function:", sum(example, test))
+println("Result of sum function: ", sum(example, test))
 
-function sub(a, b) -> a - b
-function mul(a, b) a * b
+function mul(a, b) does
+    global var c = a * b
+    return c
+end
+
+println("Result of mul function: ", mul(example, test))
+print("Global variable from mul function: ", c)

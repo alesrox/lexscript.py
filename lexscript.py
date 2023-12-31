@@ -21,8 +21,8 @@ LEFTPAREN        = '(' #'LEFT_PARENTHESIS'
 RIGHTPAREN       = ')' #'RIGHT_PARENRHESIS'
 EOF		         = 'EOF'
 COMMENT          = '#'
-COMMA            = ','
-ENDLINE          = ';'
+COMMA            = 'COMMA'
+END_LINE         = 'END_LINE'
 NEW_LINE         = 'NEW_LINE'
 # OPERATION TOKENS
 ADD              = 'ADD'
@@ -53,6 +53,8 @@ END              = 'END'
 FUNCTION         = 'FUNCTION'
 DOES             = 'DOES'
 ALT_DOES         = '->'
+RETURN           = 'RETURN'
+GLOBAL           = 'GLOBAL'
 NUMBER           = 'VAR'
 STRING           = 'STRING'
 BOOL             = 'BOOL'
@@ -68,13 +70,21 @@ local_variables = {}
 bult_in_function = ['print', 'println', 'input', 'input_num', 'clear', 'exit', 'is_a_number', 'is_a_string', 'is_a_function']
 num_line = 0
 
+def new_num_line():
+    global num_line
+    num_line += 1
+
+def get_num_line():
+    global num_line
+    return num_line
+
 class Token:
     def __init__(self, struct, value = None):
         self.struct = struct
         self.value = value
     
     def __repr__(self) -> str:
-        if self.value: return f"{self.struct}: {self.value}"
+        if self.value or self.value == 0: return f"{self.struct}: {self.value}"
         return f"{self.struct}"
 
 # Creating the number token, it can have more than one digit
@@ -83,7 +93,7 @@ def make_number(current_char: str, code: str, position: int) -> (Token, int):
     dot = False
 
     if current_char == " ": position += 1; current_char = code[position];
-    while current_char not in (ENDLINE, COMMENT) and current_char in DIGITS + '.':
+    while current_char != COMMENT and current_char in DIGITS + '.':
         if current_char == '.':
             if dot: break;
             num += '.'
@@ -103,7 +113,7 @@ def make_string(current_char: str, code: str, position: int) -> (Token, int):
     position += 1
     current_char = code[position]
 
-    while current_char not in (ENDLINE, COMMENT):
+    while current_char != COMMENT:
         string += current_char
         if current_char == '"': break
 
@@ -111,7 +121,7 @@ def make_string(current_char: str, code: str, position: int) -> (Token, int):
         current_char = code[position]
 
     if string[0] == '"' and string[-1] == '"':
-        return Token(STRING.upper(), string[1:-1]), position
+        return Token(STRING, string[1:-1]), position
     else:
         raise SyntaxError('Expected a \'"\'')
 
@@ -120,7 +130,7 @@ def make_string(current_char: str, code: str, position: int) -> (Token, int):
 def make_identifier(current_char: str, code: str, position: int) -> (Token, int):
     id_str = ""
 
-    while current_char not in (ENDLINE, COMMENT) and current_char in LETTERS + '_':
+    while current_char != COMMENT and current_char in LETTERS + '_':
         id_str += current_char
         position += 1
         current_char = code[position]
@@ -141,8 +151,12 @@ def make_identifier(current_char: str, code: str, position: int) -> (Token, int)
         return Token(KEYWORD, FUNCTION), position
     elif id_str_upper == DOES:
         return Token(KEYWORD, DOES), position
+    elif id_str_upper == RETURN:
+        return Token(KEYWORD, RETURN), position
     elif id_str_upper == END:
-        return Token(KEYWORD, END)
+        return Token(KEYWORD, END), position
+    elif id_str_upper == GLOBAL:
+        return Token(KEYWORD, GLOBAL), position
 
     
     # LOGIC OPERATORS
@@ -183,18 +197,19 @@ def next_char(code: str, position: int): return code[position+1], position+1
 # Walk through the code to translate it into tokens.
 # Remove spaces and tabs and add a ";" to know when it ends
 def lexer(code: str) -> list:
-    code += ";"
+    ENDFILE = "¿"
+    code += ENDFILE
     tokens = []
     position = 0
     current_char = code[position]
 
-    while current_char != ENDLINE:
+    while current_char != ENDFILE:
         if current_char == COMMENT:
-            while current_char != ENDLINE:
+            while current_char != ENDFILE:
                 current_char, position = next_char(code, position)
                 if current_char == "\n": break
             
-            if current_char == ENDLINE: break
+            if current_char == ENDFILE: break
         elif current_char in ' \t':
             position += 1
             current_char = code[position]
@@ -276,7 +291,6 @@ def parser(tokens: list) -> tuple:
     def AST(tokens: list, in_function: bool = False) -> tuple:
         global global_variables
         global local_variables
-        global num_line
 
         if in_function:
             ast_variables = local_variables
@@ -344,10 +358,11 @@ def parser(tokens: list) -> tuple:
         # Non operators like functions, variables, strings, numbers, booleans, etc...
         def non_operators() -> str:
             nonlocal tokens
+            
             token = tokens.pop(0)
             
             # If it's a number, boolean or string return itself
-            if token.struct in (INT, FLOAT, BOOLEAN, STRING.upper()):
+            if token.struct in (INT, FLOAT, BOOLEAN, STRING):
                 return token.value
             # If it's a identifier (variable) check if it's calling its value or assigning itself
             elif token.struct == IDENTIFIER:
@@ -357,7 +372,7 @@ def parser(tokens: list) -> tuple:
                         assignment(ast_variables[token.value][0])
                         return ast_variables[token.value][1]
                     elif token.value in ast_variables: # check if it's calling itself
-                        if ast_variables[token.value][0] == FUNCTION.upper(): # if it's a functions, execute itself
+                        if ast_variables[token.value][0] == FUNCTION: # if it's a functions, execute itself
                             if tokens[0].struct == LEFTPAREN:
                                 return execute_function(token.value)
                         
@@ -371,9 +386,21 @@ def parser(tokens: list) -> tuple:
                     return ast_variables[token.value][1]
                 else:
                     raise ValueError(f"Non defined variable: \'{token.value}\'")
-            elif token.struct == KEYWORD:
+            elif token.value in (NUMBER, BOOLEAN, STRING, FUNCTION):
                 var_name = assignment(token.value)
                 return ast_variables[var_name][1]
+            elif token.value == GLOBAL:
+                if tokens.pop(0).value in (NUMBER, BOOLEAN, STRING) and tokens[0].struct == IDENTIFIER:
+                    variable = tokens.pop(0)
+                    if tokens.pop(0).struct == EQ:
+                        global_variables[variable.value] = (variable.value, logic_operations())
+                        if tokens and in_function:
+                            if tokens[0].struct == END_LINE: tokens.pop(0)
+                            return AST(tokens)
+                    else:
+                        raise SyntaxError("Equal sign (=) was expected")
+                else:
+                    raise SyntaxError("Global variable definition id not defined correctly")
             elif token.struct == LEFTPAREN:
                 result = logic_operations()
                 tt = tokens.pop(0)
@@ -384,17 +411,29 @@ def parser(tokens: list) -> tuple:
                     raise SyntaxError("A closing parenthesis was expected")
                 
                 return result
-            if token.value in (IF, ELIF):
+            elif token.value in (IF, ELIF):
                 if_statement()
             elif token.struct == NOT:
                 return (NOT, None, logic_operations())
             elif token.struct == NEW_LINE:
-                num_line += 1
+                new_num_line()
                 parser(tokens)
             elif token.struct == RIGHTPAREN:
                 pass
+            elif token.struct == END_LINE:
+                parser(tokens)
+                pass
+            elif token.value == END:
+                if tokens != []:
+                    if tokens[0].struct == END_LINE:
+                        tokens.pop(0)
+                        parser(tokens)
+                    else:
+                        raise SyntaxError()
+            elif token.value == RETURN:
+                return logic_operations()
             else:
-                raise SyntaxError(f"Unexpected symbol: {token.value}")
+                raise SyntaxError(f"Unexpected symbol: {token.value if token.value else token.struct}")
 
         # IF Statement
         def if_statement() -> any:
@@ -407,55 +446,105 @@ def parser(tokens: list) -> tuple:
             if tokens == []:
                 SyntaxError("Se esperaba THEN-STATEMENT")
             
-            if tokens[0].struct == STATEMENT and tokens[0].value == THEN:
-                tokens.pop(0)
+            multi_line = False
+            if tokens == []: raise SyntaxError("THEN STATEMENT was expected")
+            if tokens.pop(0).value == THEN:
+                if tokens[0].struct == NEW_LINE: 
+                    multi_line = True
+                    tokens.pop(0)
                 inside_if_tokens = []
+                
                 while tokens:
                     token = tokens.pop(0)
+                    if token.value == END: new_num_line(); break
+
+                    if token.value in (IF, FOR, WHILE): 
+                        new_tokens = check_substatements(tokens, token)
+                        inside_if_tokens += new_tokens
+                        continue
+
                     if token.value in (ELSE, ELIF): 
                         tokens.insert(0, token)
                         break 
-                    if token.struct == NEW_LINE: num_line+=1; break
+
+                    if token.struct == NEW_LINE: 
+                        if not multi_line: break;
+                        new_num_line()
+                        if tokens[0].value in (ELSE, ELIF) or tokens[0].value == END: break
+                        inside_if_tokens.append(Token(END_LINE))
+                        continue
+
                     inside_if_tokens.append(token)
-                
+
                 if evaluate(condition):
-                    if tokens[0].value in (ELSE, ELIF):
-                        while tokens:
-                            token = tokens.pop(0)
-                            if token.struct == NEW_LINE: num_line+=1; break
-                            if token.value == END: break
+                    if tokens:
+                        if tokens[0].value in (ELSE, ELIF):
+                            while tokens:
+                                if tokens[0].value == END: tokens.pop(0); break
+                                if not multi_line and tokens[0].value == NEW_LINE: break
+                                tokens.pop(0)
 
                     return AST(inside_if_tokens)
                 else:
+                    if tokens == []: return None
+
                     token = tokens.pop(0)
                     if token.value == ELSE:
                         inside_else_tokens = []
                         while tokens:
                             token = tokens.pop(0)
-                            if token.struct == NEW_LINE: num_line+=1; break
-                            if token.value == END: break 
+                            if token.value in (IF, FOR): 
+                                new_tokens = check_substatements(tokens, token)
+                                inside_else_tokens += new_tokens
+                                continue
+                            if token.value == END: break
+                            if token.struct == NEW_LINE: 
+                                if not multi_line: break;
+                                new_num_line()
+                                if tokens[0].value == END: tokens.pop(0); break
+                                inside_if_tokens.append(Token(END_LINE))
+                                continue
+                            
                             inside_else_tokens.append(token)
 
                         return AST(inside_else_tokens)
                     
                     if token.value == ELIF:
-                        if_statement()
+                        return if_statement()
+                    
+                    tokens.insert(0, token)
+                    return None
             else:
                 raise SyntaxError("THEN STATEMENT was expected")
         
         # While loop statement
         def while_statement() -> any:
             nonlocal tokens
-            global num_line
+            
             aux_tokens = tokens.copy()
             condition = logic_operations()
             aux_expresion = []
 
-            if tokens[0].struct == STATEMENT and tokens[0].value == THEN:
-                tokens.pop(0)
+            if tokens == []: raise SyntaxError("THEN STATEMENT was expected")
+            if tokens.pop(0).value == THEN:
+                multi_line = False
+                if tokens[0].struct == NEW_LINE:
+                    tokens.pop(0)
+                    multi_line = True
+                        
                 while tokens:
                     token = tokens.pop(0)
-                    if token.struct == NEW_LINE: num_line+=1; break
+                    # Checking if are a substatement
+                    if token.value in (IF, FOR, WHILE): 
+                        new_tokens = check_substatements(tokens, token)
+                        aux_expresion += new_tokens
+                        continue
+                    if token.struct == NEW_LINE: 
+                        if not multi_line: break
+                        new_num_line()
+                        if tokens[0].value == END: tokens.pop(0); break
+                        aux_expresion.append(Token(END_LINE))
+                        continue
                     if token.value == END: break
                     aux_expresion.append(token)
                 final_tokens = tokens.copy()
@@ -474,7 +563,7 @@ def parser(tokens: list) -> tuple:
         # For loop statement
         def for_statement() -> any:
             nonlocal tokens
-            global num_line
+            
             for_variable = tokens.pop(0)
 
             if for_variable.struct == IDENTIFIER:
@@ -503,18 +592,36 @@ def parser(tokens: list) -> tuple:
             to_variable = logic_operations()
             tokens = aux_tokens
             
+            multi_line = False
+            if tokens == []: raise SyntaxError("THEN STATEMENT was expected")
             if tokens.pop(0).value == THEN:
-                # aux_for_body = tokens.copy()
+                if tokens[0].struct == NEW_LINE:
+                    tokens.pop(0)
+                    multi_line = True
                 aux_for_body = []
+
                 while tokens:
                     token = tokens.pop(0)
-                    if token.struct == NEW_LINE: num_line+=1; break
+                    # Checking if are a substatement
+                    if token.value in (IF, FOR, WHILE): 
+                        new_tokens = check_substatements(tokens, token)
+                        aux_for_body += new_tokens
+                        continue
+                    
+                    if token.struct == NEW_LINE: 
+                        if not multi_line: break
+                        new_num_line()
+                        if tokens[0].value == END: tokens.pop(0); break
+                        aux_for_body.append(Token(END_LINE))
+                        continue
+
                     if token.value == END: break
                     aux_for_body.append(token)
 
                 for_from = int(evaluate(value))
                 for_to = int(evaluate(to_variable)) + 1
 
+                #if tokens[0].value == END: tokens.pop(0)
                 for i in range(for_from, for_to):
                     if i == for_to: break
                     for_body = aux_for_body.copy()
@@ -523,10 +630,29 @@ def parser(tokens: list) -> tuple:
             else:
                 raise SyntaxError("THEN STATEMENT was expected")
 
+        def check_substatements(tokens: list, first_token: Token):
+                aux_tokens = [first_token]
+                find_end = False
+                while tokens:
+                    aux_token = tokens.pop(0)
+                    if aux_token.value in (IF, FOR, WHILE):
+                        new_tokens = check_substatements(tokens, aux_token)
+                        aux_tokens += new_tokens
+                        continue
+                    if aux_token.value == THEN:
+                        if tokens[0].struct == NEW_LINE:
+                            find_end = True
+                    #if aux_token.struct == NEW_LINE: aux_tokens.append(Token(END_LINE)); continue
+                    if aux_token.struct == NEW_LINE and not find_end: break
+                    if aux_token.value == END: aux_tokens.append(aux_token); break
+                    aux_tokens.append(aux_token)
+                
+                return aux_tokens
+
         # Declaration and reassignment of variables
         def assignment(struct) -> str:
             nonlocal tokens
-            global num_line
+            
             identifier_token = tokens.pop(0)
 
             if identifier_token.struct == IDENTIFIER:
@@ -534,7 +660,9 @@ def parser(tokens: list) -> tuple:
                     expression_tokens = []
                     while tokens:
                         token = tokens.pop(0)
-                        if token.struct == NEW_LINE: num_line += 1; break
+                        if token.struct in (NEW_LINE, END_LINE): 
+                            new_num_line()
+                            break
                         expression_tokens.append(token)
                     aux_tokens = tokens.copy()
                     tokens = expression_tokens
@@ -581,7 +709,7 @@ def parser(tokens: list) -> tuple:
         
         # Define a function
         def define_function() -> any:
-            global num_line
+            
             nonlocal tokens
             function_name = tokens.pop(0).value
             function_body = []
@@ -606,17 +734,39 @@ def parser(tokens: list) -> tuple:
                     except IndexError:
                         raise SyntaxError("Empty function")
                     
+                    multi_line = False
+                    single_line = False
+                    function_type = FUNCTION
+                    if tokens[0].struct == NEW_LINE: 
+                        tokens.pop(0)
+                    else:
+                        single_line = True
+                        tokens.insert(0, Token(KEYWORD, RETURN))
+                    
                     while tokens:
                         token = tokens.pop(0)
-                        if token.struct == NEW_LINE: num_line+=1; break
                         if token.value == END: break
+                        if token.struct == NEW_LINE:
+                            new_num_line()
+                            multi_line = True
+                            if single_line:
+                                if tokens[0].value == END: tokens.pop(0)
+                                break
+                            
+                            continue
+
+                        if multi_line: 
+                            multi_line = False
+                            function_body.append(Token(END_LINE))
+                        
+                        if token.struct == KEYWORD and token.value == RETURN: function_type += '-RETURNED'
                         function_body.append(token)
 
-                    ast_variables[function_name] = (FUNCTION.upper(), function_arguments, function_body)
+                    ast_variables[function_name] = (function_type, function_arguments, function_body)
                 elif token.struct == EQ:
                     token = tokens.pop(0)
                     if token.struct == IDENTIFIER and token.value in global_variables:
-                        if global_variables[token.value][0] == FUNCTION:
+                        if global_variables[token.value][0] in (FUNCTION, FUNCTION+'-RETURNED'):
                             global_variables[function_name] = global_variables[token.value]
                     else:
                         raise SyntaxError(f"Invalid function definition, unexpected '{token.value}' function")
@@ -643,7 +793,10 @@ def parser(tokens: list) -> tuple:
                 for i in range(len(function_arguments)):
                     local_variables[arguments[i][1]] = (arguments[i][0], function_arguments[i])
                 
-                return AST(global_variables[name_function][2].copy(), in_function=True)
+                if FUNCTION+'-RETURNED' == global_variables[name_function][0]:
+                    return AST(global_variables[name_function][2].copy(), in_function=True)
+                else:
+                    AST(global_variables[name_function][2].copy(), in_function=True)
             else:
                 raise TypeError("Invalid numbers of arguments on function")
             
@@ -654,24 +807,32 @@ def parser(tokens: list) -> tuple:
             tokens.pop(0)
             args = []
 
+            token = tokens.pop(0)
             while tokens:
-                if tokens[0].struct == RIGHTPAREN: break
-                arg = logic_operations()
-                args.append(evaluate(arg))
-                if tokens == []: break
-                if tokens.pop(0).value != COMMA: break
+                if token.struct == RIGHTPAREN: break
+                if token.value == COMMA: token = tokens.pop(0); continue
+                if token.struct == IDENTIFIER:
+                    if token.value in global_variables:
+                        if global_variables[token.value][0] in (FUNCTION, FUNCTION+'-RETURNED'):
+                            args.append(evaluate(execute_function(token.value)))
+                            token = tokens.pop(0)
+                            continue
+                
+                tokens.insert(0, token)
+                arg = evaluate(logic_operations())
+                token = tokens.pop(0)
+                args.append(arg)
             
             match name_function:
                 case 'print':
                     for arg in args:
-                        print(f"{arg}", end=" ")
+                        print(f"{arg}", end="")
                     
                 case 'println':
                     for arg in args:
-                        print(f"{arg}", end=" ")
+                        print(f"{arg}", end="")
                     
                     print("\n", end="")
-                    
                 case 'input':
                     return input(args[0]) if args else input()
                 case 'input_num':
@@ -714,13 +875,16 @@ def parser(tokens: list) -> tuple:
                 assignment(token.value)
             # Variable redeclaration and type checking (It is a strongly typed language)
             elif token.struct == IDENTIFIER and token.value in ast_variables and tokens != []:
-                if tokens[0].struct == LEFTPAREN:
+                if ast_variables[token.value][0] in (FUNCTION, FUNCTION+'-RETURNED'):
+                    if tokens[0].struct != LEFTPAREN:
+                        return ast_variables[token.value]
+                    
+                    if FUNCTION+'-RETURNED' == global_variables[token.value][0]:
+                        print(1)
+                        exit()
+                    
                     execute_function(token.value)
-
-                if ast_variables[token.value][0] == FUNCTION:
-                    return ast_variables[token.value]
-            
-                if tokens[0].struct == EQ:
+                elif tokens[0].struct == EQ:
                     tokens.insert(0, token)
                     assignment(ast_variables[token.value][0])
                 else:
@@ -740,16 +904,14 @@ def parser(tokens: list) -> tuple:
             elif token.struct == NOT:
                 return (NOT, None, logic_operations())
             elif token.struct == NEW_LINE:
-                num_line+=1
+                new_num_line()
                 parser(tokens)
                 break
             else:
                 tokens.insert(0, token)
                 return logic_operations()
 
-    test = AST(tokens)
-    if test:
-        print("Result: ", test)
+    AST(tokens)
 
 def evaluate(ast: tuple) -> any:
     if not ast and ast != 0:
@@ -807,7 +969,7 @@ def execute(code: str) -> any:
     try:
         parser(tokens)
     except Exception as error:
-        print(f"\n{type(error).__name__} on line {num_line}: {error}")
+        print(f"\n{type(error).__name__} on line {get_num_line()}: {error}")
 
 def debug(code: str) -> any:
     print("------ CODE -------")
