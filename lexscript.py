@@ -64,10 +64,6 @@ BOOL              = 'BOOL'
 TRUE              = 'True'
 FALSE             = 'False'      
 
-# Special Groups
-LOGIC = (AND, OR, COMPARISON, NOT_EQUAL, LOWER_THAN, GREATER_THAN, LOWER_OR_EQUAL, GREATER_OR_EQUAL)
-LOGIC_COMPARISONS = (COMPARISON, NOT_EQUAL, LOWER_THAN, GREATER_THAN, LOWER_OR_EQUAL, GREATER_OR_EQUAL)
-
 # MATH VARIABLES
 MATH_E   = 2.718281828459045
 MATH_PI  = 3.141592653589793
@@ -339,7 +335,7 @@ def parser(tokens: list, in_function: bool = False) -> tuple:
         nonlocal tokens
         left = add_subtract()
 
-        while tokens and tokens[0].struct in LOGIC_COMPARISONS:
+        while tokens and tokens[0].struct in (COMPARISON, NOT_EQUAL, LOWER_THAN, GREATER_THAN, LOWER_OR_EQUAL, GREATER_OR_EQUAL):
             operator = tokens.pop(0)
             right = add_subtract()
             left = (operator.struct, left, right)
