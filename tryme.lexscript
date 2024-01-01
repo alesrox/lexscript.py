@@ -25,6 +25,8 @@ while test < 4 then test = test + 1
 println("Var test after while loop:", test)
 
 # FOR STATEMENT
+var example = 0
+for i to 4 then example = example + i
 println("Drawing a 3x3 square: ")
 # REMEMBER: The count start on 0 -> i and j -> (0 => 1 => 2)
 for i to 2 then
@@ -40,7 +42,7 @@ end
 # FUNCTIONS
 # Single-line function
 function sum(a: var, b: var) does a + b
-println("Result of sum function (10 + 4):", sum(10, test))
+println("Result of sum function (10 + 4):", sum(example, test))
 
 # Multi-line function
 function mul(num1: var, num2: var) does
@@ -49,7 +51,7 @@ function mul(num1: var, num2: var) does
     return result
 end
 print("Result of mul function:")
-println(mul(10, test))
+println(mul(example, test))
 
 # A function with global vars
 var int = 1

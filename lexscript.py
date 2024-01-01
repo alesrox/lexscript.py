@@ -83,7 +83,8 @@ bult_in_function = [
     'print', 'println', 
     'input', 'input_num', 
     'clear', 'exit', 
-    'is_a_number', 'is_a_string', 
+    'is_a_number', 
+    'is_a_string', 
     'is_a_function', 
     'sqrt', 'sin', 'cos',
 ]
