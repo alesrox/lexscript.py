@@ -4,51 +4,60 @@ string hello = "Hello "
 string world = "World"
 println(hello + world)
 
-bool boolean = 1 > 2
-println("Boolean variable value: ", boolean)
+bool boolean = 1.0 > 2
+println("Boolean variable value:", boolean)
 
 var num = 3
 var negative_num = -1 
 num = if boolean then num * 2 else negative_num ^ 2
-println("Num variable value: ", num)
+println("Num variable value:", num)
+
+var not_a_number = 0/0
+println("0 divided by 0 it's equals to nan:", not_a_number)
+var infinite = 10/0
+println("Any number divided by 0 it's equals to infinite:", infinite)
+println("Infinite times any number except 0 it's equals to infinite:", 59852309 * inf, inf * inf, 0 * inf)
+println("Nan plus infinite it's equals to nan:", nan + inf)
 
 # WHILE STATEMENT
 var test = 1
 while test < 4 then test = test + 1
-println("Var test after while loop: ", test)
+println("Var test after while loop:", test)
 
 # FOR STATEMENT
-var example = 0
-for i = 1 to 4 then example = example + i
-println("Var example after for loop: ", example)
-
-for i to 4 then 
-    if i == 4 then 
-        println(i) 
-    else
-        if i == 0 then
-            print("Start: ")
+println("Drawing a 3x3 square: ")
+# REMEMBER: The count start on 0 -> i and j -> (0 => 1 => 2)
+for i to 2 then
+    for j to 2 then
+        if j != 2 then
+            print("* ")
         else
-            print(i, ", ")
+            println("*")
         end
     end
 end
-println("Drawing a square: ")
-for i to 4 then
-    for j to 4 then
-        print("* ")
-    end
-    println(" ")
-end
 
 # FUNCTIONS
-function sum(a, b) does a + b
-println("Result of sum function: ", sum(example, test))
+# Single-line function
+function sum(a: var, b: var) does a + b
+println("Result of sum function (10 + 4):", sum(10, test))
 
-function mul(a, b) does
-    global var c = a * b
-    return c
+# Multi-line function
+function mul(num1: var, num2: var) does
+    print(num1, "*", num2, "->")
+    var result = num1 * num2
+    return result
 end
+print("Result of mul function:")
+println(mul(10, test))
 
-println("Result of mul function: ", mul(example, test))
-print("Global variable from mul function: ", c)
+# A function with global vars
+var int = 1
+function increase_int(increase: var) does
+    println("Global var int previus value:", global int)
+    global int = global int + increase
+    println("Global var int new value:", global int)
+end
+# PRINT RESULTS
+increase_int(99)
+print("Calling the int var out of the function", int)
