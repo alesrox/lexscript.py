@@ -1,6 +1,6 @@
 # Lexscript
 Strongly and static typed langague based on python, is under development.
-At the moment it's made with python, perhabs in the future the code will be migratec at javascript.
+At the moment it's made with python, perhabs in the future the code will be migrated at javascript.
 
 # Example of Code
 Code:
@@ -34,16 +34,15 @@ for i to 2 then
 end
 
 # FUNCTIONS
-function sum(a, b) a + b
+function sum(a: var, b: var) a + b
 println("Result of sum function: ", sum(example, test))
 
-function mul(a, b) does
-    var c = a * b
-    return c
+function mul(a: var, b: var) does
+    var result = a * b
+    return result
 end
 
 println("Result of mul function: ", mul(example, test))
-print("Global variable from mul function: ", c)
 ```
 Output:
 ```
