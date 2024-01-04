@@ -343,61 +343,38 @@ def parser(tokens: list, in_function: bool = False, local_variables: dict = None
     if not tokens:
         return None
 
-    # AND, OR Operators
-    def logic_operations() -> tuple:
+    # Creating the Abstract Syntax Tree with a recusive function
+    def create_ast() -> tuple:
         nonlocal tokens
-        left = logic_comparisons()
 
-        while tokens and tokens[0].struct in (AND, OR):
-            operator = tokens.pop(0)
-            right = logic_comparisons()
-            left = (operator.struct, left, right)
-        return left
-    
-    # Logic Comparisons
-    def logic_comparisons() -> tuple:
-        nonlocal tokens
-        left = add_subtract()
+        operators = [
+            (AND, OR),
+            (COMPARISON, NOT_EQUAL, LOWER_THAN, GREATER_THAN, LOWER_OR_EQUAL, GREATER_OR_EQUAL),
+            (ADD, SUB),
+            (MUL, DIV),
+            (POW)
+        ]
 
-        while tokens and tokens[0].struct in (COMPARISON, NOT_EQUAL, LOWER_THAN, GREATER_THAN, LOWER_OR_EQUAL, GREATER_OR_EQUAL):
-            operator = tokens.pop(0)
-            right = add_subtract()
-            left = (operator.struct, left, right)
-        return left
-    
-    # Addition and Subtraction
-    def add_subtract() -> tuple:
-        nonlocal tokens
-        left = multiply_divide()
+        left = None
 
-        while tokens and tokens[0].struct in (ADD, SUB):
-            operator = tokens.pop(0)
-            right = multiply_divide()
-            left = (operator.struct, left, right)
-        return left
-    
-    # Multiplication and Division
-    def multiply_divide() -> tuple:
-        nonlocal tokens
-        left = power()
+        while tokens:
+            if left is None:
+                left = non_operators()
 
-        while tokens and tokens[0].struct in (MUL, DIV):
-            operator = tokens.pop(0)
-            right = power()
-            left = (operator.struct, left, right)
-        return left
-    
-    # Power
-    def power() -> tuple:
-        nonlocal tokens
-        left = non_operators()
+            found_operator = False
+            for operator_group in operators:
+                if tokens and tokens[0].struct in operator_group:
+                    operator = tokens.pop(0)
+                    right = create_ast()
+                    left = (operator.struct, left, right)
+                    found_operator = True
+                    break
+            
+            if not found_operator:
+                break
         
-        while tokens and tokens[0].struct == POW:
-            operator = tokens.pop(0)
-            right = non_operators()
-            left = (operator.struct, left, right)
         return left
-    
+
     # Non operators like functions, variables, strings, numbers, booleans, etc...
     def non_operators() -> str:
         nonlocal tokens
@@ -462,7 +439,7 @@ def parser(tokens: list, in_function: bool = False, local_variables: dict = None
             if sub_token.value in (NUMBER, BOOLEAN, STRING) and tokens[0].struct == IDENTIFIER:
                 variable = tokens.pop(0)
                 if tokens.pop(0).struct == EQ:
-                    global_variables[variable.value] = (variable.value, logic_operations())
+                    global_variables[variable.value] = (variable.value, create_ast())
                     if tokens:
                         if tokens[0].struct == END_LINE: tokens.pop(0)
                         return parser(tokens, in_function, local_variables)
@@ -486,11 +463,11 @@ def parser(tokens: list, in_function: bool = False, local_variables: dict = None
                 set_line(token.line)
                 raise SyntaxError("Global variable definition id not defined correctly")
         elif token.struct == LEFTPAREN:
-            result = logic_operations()
+            result = create_ast()
             tt = tokens.pop(0)
 
             if tt.value == ',':
-                result += logic_operations()
+                result += create_ast()
             elif tt.struct != ')':
                 set_line(tt.line)
                 raise SyntaxError("A closing parenthesis was expected")
@@ -499,7 +476,7 @@ def parser(tokens: list, in_function: bool = False, local_variables: dict = None
         elif token.value in (IF, ELIF):
             return if_statement()
         elif token.struct == NOT:
-            return (NOT, None, logic_operations())
+            return (NOT, None, create_ast())
         elif token.struct == NEW_LINE:
             parser(tokens, in_function, local_variables)
         elif token.struct == RIGHTPAREN:
@@ -514,7 +491,7 @@ def parser(tokens: list, in_function: bool = False, local_variables: dict = None
                 if tokens[0].struct == END_LINE: tokens.pop(0)
                 parser(tokens, in_function, local_variables)
         elif token.value == RETURN:
-            return logic_operations()
+            return create_ast()
         else:
             set_line(token.line)
             raise SyntaxError(f"Unexpected symbol: {token.value if token.value else token.struct}")
@@ -523,7 +500,7 @@ def parser(tokens: list, in_function: bool = False, local_variables: dict = None
     def if_statement() -> any:
         nonlocal tokens
         line = tokens[0].line
-        condition = logic_operations()  # Condición para evaluar el IF-THEN
+        condition = create_ast()  # Condición para evaluar el IF-THEN
     
         if condition == None:
             return None
@@ -609,7 +586,7 @@ def parser(tokens: list, in_function: bool = False, local_variables: dict = None
         nonlocal tokens
         line = tokens[0].line
         aux_tokens = tokens.copy()
-        condition = logic_operations()
+        condition = create_ast()
         aux_expresion = []
 
         if tokens == []: set_line(line); raise SyntaxError("THEN STATEMENT was expected")
@@ -637,7 +614,7 @@ def parser(tokens: list, in_function: bool = False, local_variables: dict = None
 
             while True:
                 tokens = aux_tokens.copy()
-                condition = logic_operations()
+                condition = create_ast()
                 if not evaluate(condition): break
                 expresion = aux_expresion.copy()
                 parser(expresion, in_function, local_variables)
@@ -656,7 +633,7 @@ def parser(tokens: list, in_function: bool = False, local_variables: dict = None
         if for_variable.struct == IDENTIFIER:
             token = tokens.pop(0)
             if token.struct == EQ:
-                value = logic_operations() 
+                value = create_ast() 
                 if type(evaluate(value)) not in (float, int): 
                     set_line(token.line)
                     raise ValueError(f"{for_statement.value} expected to be a number")
@@ -683,7 +660,7 @@ def parser(tokens: list, in_function: bool = False, local_variables: dict = None
         aux_tokens = tokens.copy()
         tokens = to_variable_tokens
         line = tokens[0].line
-        to_variable = logic_operations()
+        to_variable = create_ast()
         tokens = aux_tokens
         
         multi_line = False
@@ -773,11 +750,11 @@ def parser(tokens: list, in_function: bool = False, local_variables: dict = None
                         if tokens[1].struct == LEFTPAREN:
                             expression = execute_function(tokens.pop(0).value)
                         else:
-                            expression = logic_operations()
+                            expression = create_ast()
                     except IndexError:
-                        expression = logic_operations()
+                        expression = create_ast()
                 else:
-                    expression = logic_operations()
+                    expression = create_ast()
                 
                 tokens = aux_tokens
                 result = evaluate(expression)
@@ -904,7 +881,7 @@ def parser(tokens: list, in_function: bool = False, local_variables: dict = None
                 line = tokens[0].line
                 break
 
-            arg = logic_operations()
+            arg = create_ast()
             called_arguments.append((get_type(type(evaluate(arg))), arg))
             token = tokens.pop(0)
             if token.value != COMMA:
@@ -952,7 +929,7 @@ def parser(tokens: list, in_function: bool = False, local_variables: dict = None
                         continue
             
             tokens.insert(0, token)
-            arg = evaluate(logic_operations())
+            arg = evaluate(create_ast())
             token = tokens.pop(0)
             args.append(arg)
         
@@ -1062,7 +1039,7 @@ def parser(tokens: list, in_function: bool = False, local_variables: dict = None
                     assignment(ast_variables[token.value][0])
             else:
                 tokens.insert(0, token)
-                return logic_operations()
+                return create_ast()
         elif token.struct == IDENTIFIER and token.value in bult_in_function and tokens:
             if tokens[0].struct == LEFTPAREN:
                 execute_builtin_funcs(token.value)
@@ -1078,13 +1055,13 @@ def parser(tokens: list, in_function: bool = False, local_variables: dict = None
         elif token.struct == STATEMENT and token.value == FOR:
             for_statement()
         elif token.struct == NOT:
-            return (NOT, None, logic_operations())
+            return (NOT, None, create_ast())
         elif token.struct == NEW_LINE:
             parser(tokens, in_function, local_variables)
             break
         else:
             tokens.insert(0, token)
-            return logic_operations()
+            return create_ast()
 
 def evaluate(ast: tuple) -> any:
     if not ast and ast != 0:
