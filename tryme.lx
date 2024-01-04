@@ -4,10 +4,10 @@ string hello = "Hello "
 string world = "World"
 println(hello + world)
 
-bool boolean = 1.0 > 2
+bool boolean = not 2 > 1
 println("Boolean variable value:", boolean)
 
-var num = 3
+var num = (3-1)+1
 var negative_num = -1 
 num = if boolean then num * 2 else negative_num ^ 2
 println("Num variable value:", num)
@@ -21,12 +21,12 @@ println("Nan plus infinite it's equals to nan:", nan + inf)
 
 # WHILE STATEMENT
 var test = 1
-while test < 4 then test = test + 1
+while test < 4 then test += 1
 println("Var test after while loop:", test)
 
 # FOR STATEMENT
 var example = 0
-for i to 4 then example = example + i
+for i to 4 then example += i
 println("Drawing a 3x3 square: ")
 # REMEMBER: The count start on 0 -> i and j -> (0 => 1 => 2)
 for i to 2 then
@@ -75,4 +75,4 @@ function fibonacci(num: var) does
     end
 end
 
-print("The number of the fibonacci sequence:", fibonacci(input_num("Give a number: ")))
+print("The number of the fibonacci sequence:", fibonacci(input_num("Give a number: ")))#

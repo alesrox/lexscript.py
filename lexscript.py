@@ -1,7 +1,11 @@
 import os
 import sys
+import time
 from math import sqrt, sin, cos
 from string import ascii_letters
+
+#  SETTINGS
+sys.setrecursionlimit(3000)
 
 # CONSTANTS
 DIGITS = "0123456789"
@@ -22,6 +26,7 @@ EQ_ADD            = 'EQ_ADD'
 EQ_SUB            = 'EQ_SUB'
 EQ_MUL            = 'EQ_MUL'
 EQ_DIV            = 'EQ_DIV'
+EQ_MOD            = 'EQ_MOD'
 EQ_POW            = 'EQ_POW'
 LEFTPAREN         = '(' #'LEFT_PARENTHESIS'
 RIGHTPAREN        = ')' #'RIGHT_PARENRHESIS'
@@ -36,6 +41,7 @@ ADD               = 'ADD'
 SUB               = 'SUB'
 MUL               = 'MUL'
 DIV               = 'DIV'
+MOD               = 'MOD'
 POW               = 'POWER'
 # LOGIC TOKENS 
 NOT               = 'NOT'
@@ -90,7 +96,7 @@ bult_in_function = [
     'is_a_number', 
     'is_a_string', 
     'is_a_function', 
-    'sqrt', 'sin', 'cos',
+    'sqrt'
 ]
 
 num_line_code = 0
@@ -288,6 +294,12 @@ def lexer(code: str) -> list:
                 tokens.append(Token(EQ_DIV, None, num_line))
                 continue
             tokens.append(Token(DIV, None, num_line))
+        elif current_char == '%':
+            if code[position+1] == '=':
+                current_char, position = next_char(code, position + 1)
+                tokens.append(Token(EQ_MOD, None, num_line))
+                continue
+            tokens.append(Token(MOD, None, num_line))
         elif current_char == '^':
             if code[position+1] == '=':
                 current_char, position = next_char(code, position + 1)
@@ -325,54 +337,39 @@ def lexer(code: str) -> list:
     
     return tokens
 
+
 # Parser <-> Analizador sintáctico
 # Make the Abstract Syntax Tree
 # Order AST: AND Operator -> OR Operator -> Logic comparisons ->
 #       -> Addition and Subtraction -> Multiplication and Division -> Power 
-
 def parser(tokens: list, in_function: bool = False, local_variables: dict = None) -> tuple:
     global global_variables
 
-    if in_function and local_variables:
-        ast_variables = local_variables
-    elif in_function and not local_variables:
-        raise NotImplementedError("ONLY FOR DEBUG: local_variables have not been sent")
-    else:
-        ast_variables = global_variables
+    ast_variables = local_variables if in_function and local_variables else global_variables
 
     if not tokens:
         return None
+    
+    operators = (
+        (AND, OR),
+        (COMPARISON, NOT_EQUAL, LOWER_THAN, GREATER_THAN, LOWER_OR_EQUAL, GREATER_OR_EQUAL),
+        (ADD, SUB),
+        (MUL, DIV, MOD),
+        (POW),
+    )
 
-    # Creating the Abstract Syntax Tree with a recusive function
-    def create_ast() -> tuple:
+    def create_ast(operator_group: int = 0) -> tuple:
         nonlocal tokens
-
-        operators = [
-            (AND, OR),
-            (COMPARISON, NOT_EQUAL, LOWER_THAN, GREATER_THAN, LOWER_OR_EQUAL, GREATER_OR_EQUAL),
-            (ADD, SUB),
-            (MUL, DIV),
-            (POW)
-        ]
-
-        left = None
-
-        while tokens:
-            if left is None:
-                left = non_operators()
-
-            found_operator = False
-            for operator_group in operators:
-                if tokens and tokens[0].struct in operator_group:
-                    operator = tokens.pop(0)
-                    right = create_ast()
-                    left = (operator.struct, left, right)
-                    found_operator = True
-                    break
-            
-            if not found_operator:
-                break
         
+        if operator_group == 5:
+            return non_operators()
+
+        left = create_ast(operator_group + 1)
+
+        while tokens and tokens[0].struct in operators[operator_group]:
+            operator = tokens.pop(0)
+            right = create_ast(operator_group + 1)
+            left = (operator.struct, left, right)
         return left
 
     # Non operators like functions, variables, strings, numbers, booleans, etc...
@@ -387,29 +384,7 @@ def parser(tokens: list, in_function: bool = False, local_variables: dict = None
         # If it's a identifier (variable) check if it's calling its value or assigning itself
         elif token.struct == IDENTIFIER:
             if tokens:
-                if tokens[0].struct == EQ: # check if it have to assigning itself
-                    tokens.insert(0, token)
-                    assignment(ast_variables[token.value][0])
-                    return ast_variables[token.value][1]
-                elif "EQ_" in tokens[0].struct:
-                    operation = tokens[0].struct
-                    tokens[0] = Token(EQ, None, tokens[0].line)
-                    tokens.insert(1, token)
-                    match operation:
-                        case 'EQ_ADD':
-                            tokens.insert(2, Token(ADD, None, tokens[0].line))
-                        case 'EQ_SUB':
-                            tokens.insert(2, Token(SUB, None, tokens[0].line))
-                        case 'EQ_MUL':
-                            tokens.insert(2, Token(MUL, None, tokens[0].line))
-                        case 'EQ_DIV':
-                            tokens.insert(2, Token(DIV, None, tokens[0].line))
-                        case 'EQ_POW':
-                            tokens.insert(2, Token(POW, None, tokens[0].line))
-                    tokens.insert(0, token)
-                    assignment(ast_variables[token.value][0])
-                    return ast_variables[token.value][1]
-                elif token.value in bult_in_function: # Check if it's a bult in function
+                if token.value in bult_in_function: # Check if it's a bult in function
                     return execute_builtin_funcs(token.value)
                 elif token.value in ast_variables: # check if it's calling itself
                     if ast_variables[token.value][0] in (FUNCTION, FUNCTION_RETURNED): # if it's a functions, execute itself
@@ -431,9 +406,6 @@ def parser(tokens: list, in_function: bool = False, local_variables: dict = None
             else:
                 set_line(token.line)
                 raise ValueError(f"Non defined variable: \'{token.value}\'")
-        elif token.value in (NUMBER, BOOLEAN, STRING, FUNCTION):
-            var_name = assignment(token.value)
-            return ast_variables[var_name][1]
         elif token.value == GLOBAL:
             sub_token = tokens.pop(0)
             if sub_token.value in (NUMBER, BOOLEAN, STRING) and tokens[0].struct == IDENTIFIER:
@@ -473,21 +445,17 @@ def parser(tokens: list, in_function: bool = False, local_variables: dict = None
                 raise SyntaxError("A closing parenthesis was expected")
             
             return result
-        elif token.value in (IF, ELIF):
-            return if_statement()
         elif token.struct == NOT:
             return (NOT, None, create_ast())
         elif token.struct == NEW_LINE:
             parser(tokens, in_function, local_variables)
-        elif token.struct == RIGHTPAREN:
-            pass
         elif token.struct == END_LINE:
             if in_function:
                 return parser(tokens, in_function, local_variables)
 
             parser(tokens, in_function, local_variables)
         elif token.value == END:
-            if tokens != []:
+            if tokens:
                 if tokens[0].struct == END_LINE: tokens.pop(0)
                 parser(tokens, in_function, local_variables)
         elif token.value == RETURN:
@@ -505,12 +473,12 @@ def parser(tokens: list, in_function: bool = False, local_variables: dict = None
         if condition == None:
             return None
         
-        if tokens == []:
+        if not tokens:
             set_line(line)
             raise SyntaxError("THEN STATEMENT was expected")
         
         multi_line = False
-        if tokens == []: set_line(line); raise SyntaxError("THEN STATEMENT was expected")
+        if not tokens: set_line(line); raise SyntaxError("THEN STATEMENT was expected")
         if tokens.pop(0).value == THEN:
             if tokens[0].struct == NEW_LINE: 
                 multi_line = True
@@ -589,7 +557,7 @@ def parser(tokens: list, in_function: bool = False, local_variables: dict = None
         condition = create_ast()
         aux_expresion = []
 
-        if tokens == []: set_line(line); raise SyntaxError("THEN STATEMENT was expected")
+        if not tokens: set_line(line); raise SyntaxError("THEN STATEMENT was expected")
         if tokens.pop(0).value == THEN:
             multi_line = False
             if tokens[0].struct == NEW_LINE:
@@ -664,7 +632,7 @@ def parser(tokens: list, in_function: bool = False, local_variables: dict = None
         tokens = aux_tokens
         
         multi_line = False
-        if tokens == []: set_line(line); raise SyntaxError("THEN STATEMENT was expected")
+        if not tokens: set_line(line); raise SyntaxError("THEN STATEMENT was expected")
         if tokens.pop(0).value == THEN:
             if tokens[0].struct == NEW_LINE:
                 tokens.pop(0)
@@ -919,7 +887,7 @@ def parser(tokens: list, in_function: bool = False, local_variables: dict = None
             if token.struct == IDENTIFIER:
                 if token.value in global_variables:
                     if global_variables[token.value][0] in (FUNCTION, FUNCTION_RETURNED):
-                        if tokens == []: 
+                        if not tokens: 
                             args.append(None)
                         elif tokens[0].struct == LEFTPAREN:
                             args.append(evaluate(execute_function(token.value)))
@@ -982,22 +950,6 @@ def parser(tokens: list, in_function: bool = False, local_variables: dict = None
                 else:
                     set_line(line)
                     raise TypeError("Invalid numbers of arguments on function")
-            case 'sin':
-                set_line(line)
-                if args[0] == "deg":
-                    return sin((args[1] * 2 * MATH_PI)/360)
-                elif args[0] == "rad":
-                    return sin(args[1])
-                else:
-                    return sin(args[0])
-            case 'cos':
-                set_line(line)
-                if args[0] == "deg":
-                    return cos((args[1] * 0.5 * MATH_PI)/90)
-                elif args[0] == "rad":
-                    return cos(args[1])
-                else:
-                    return cos(args[0])
 
     # Main parser logic
     while tokens:
@@ -1011,7 +963,7 @@ def parser(tokens: list, in_function: bool = False, local_variables: dict = None
                 raise SyntaxError(f"Variable '{tokens[0].value}' already exists")
             assignment(token.value)
         # Variable redeclaration and type checking (It is a strongly typed language)
-        elif token.struct == IDENTIFIER and token.value in ast_variables and tokens != []:
+        elif token.struct == IDENTIFIER and token.value in ast_variables and tokens:
             if ast_variables[token.value][0] in (FUNCTION, FUNCTION_RETURNED):
                 if tokens[0].struct != LEFTPAREN:
                     return ast_variables[token.value]
@@ -1024,17 +976,7 @@ def parser(tokens: list, in_function: bool = False, local_variables: dict = None
                     operation = tokens[0].struct
                     tokens[0] = Token(EQ, None, tokens[0].line)
                     tokens.insert(1, token)
-                    match operation:
-                        case 'EQ_ADD':
-                            tokens.insert(2, Token(ADD, None, tokens[0].line))
-                        case 'EQ_SUB':
-                            tokens.insert(2, Token(SUB, None, tokens[0].line))
-                        case 'EQ_MUL':
-                            tokens.insert(2, Token(MUL, None, tokens[0].line))
-                        case 'EQ_DIV':
-                            tokens.insert(2, Token(DIV, None, tokens[0].line))
-                        case 'EQ_POW':
-                            tokens.insert(2, Token(POW, None, tokens[0].line))
+                    tokens.insert(2, Token(operation[3::], None, tokens[0].line))
                     tokens.insert(0, token)
                     assignment(ast_variables[token.value][0])
             else:
@@ -1054,11 +996,6 @@ def parser(tokens: list, in_function: bool = False, local_variables: dict = None
             while_statement()
         elif token.struct == STATEMENT and token.value == FOR:
             for_statement()
-        elif token.struct == NOT:
-            return (NOT, None, create_ast())
-        elif token.struct == NEW_LINE:
-            parser(tokens, in_function, local_variables)
-            break
         else:
             tokens.insert(0, token)
             return create_ast()
@@ -1096,6 +1033,11 @@ def evaluate(ast: tuple) -> any:
                 return left / right
             except ZeroDivisionError:
                 return nan if left == 0 else inf
+        case 'MOD':
+            try:
+                return left % right
+            except ZeroDivisionError:
+                return nan
         case 'POWER':
             return left ** right
         case 'COMPARISION':
@@ -1127,8 +1069,6 @@ def execute(code: str) -> any:
         print(f"{lines[get_num_line()-1]}")
 
 def debug(code: str) -> any:
-    print("------ CODE -------")
-    print(code)
     print("----- TOKENS ------")
     tokens = lexer(code)
     print(tokens)
@@ -1144,8 +1084,10 @@ if __name__ == '__main__':
     except:
         file = open('test.lx')
 
-    code = file.read()
-    if '--debug' in sys.argv:
-        debug(code)
-    else:
-        execute(code)
+    try:
+        startTime = time.time()
+        code = file.read()
+        debug(code) if '--debug' in sys.argv else execute(code)
+        if '--time' in sys.argv: print(f"\n\nExecuting time: {(time.time() - startTime)*1000:.2f} miliseconds")
+    except KeyboardInterrupt:
+        print(f"\n\nKeyboard Interrupt - Executing time: {(time.time() - startTime)*1000:.2f} miliseconds")

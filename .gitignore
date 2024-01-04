@@ -3,3 +3,4 @@ test.lexscript
 test.lx
 .DS_Store
 .gitignore
+test.py
