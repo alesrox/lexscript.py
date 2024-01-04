@@ -66,13 +66,8 @@ println("Calling the int var out of the function", int)
 
 # Recursive function
 function fibonacci(num: var) does
-    if num == 0 then
-        return 0
-    elif num == 1 then
-        return 1
-    else
-        return fibonacci(num - 1) + fibonacci(num - 2)
-    end
+    if num > 1 then return fibonacci(num - 1) + fibonacci(num - 2)
+    return num
 end
 
-print("The number of the fibonacci sequence:", fibonacci(input_num("Give a number: ")))#
+print("The number of the fibonacci sequence:", fibonacci(input_num("Give a number: ")))

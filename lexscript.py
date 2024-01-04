@@ -266,7 +266,7 @@ def lexer(code: str) -> list:
             tokens.append(Token(ADD, None, num_line))
         elif current_char == '-':
             if code[position+1] == '>':
-                current_char, position = next_char(code, position)
+                current_char, position = next_char(code, position + 1)
                 tokens.append(Token(KEYWORD, ALT_DOES, num_line))
                 continue
             if code[position+1] == '=':
@@ -499,8 +499,8 @@ def parser(tokens: list, in_function: bool = False, local_variables: dict = None
                     tokens.insert(0, token)
                     break 
 
-                if token.struct == NEW_LINE: 
-                    if not multi_line: break;
+                if token.struct in (NEW_LINE, END_LINE): 
+                    if not multi_line: break
                     if tokens[0].value in (ELSE, ELIF) or tokens[0].value == END: break
                     inside_if_tokens.append(Token(END_LINE, None, token.line))
                     continue
@@ -544,7 +544,7 @@ def parser(tokens: list, in_function: bool = False, local_variables: dict = None
                     return if_statement()
                 
                 tokens.insert(0, token)
-                return None
+                return parser(tokens, in_function, local_variables)
         else:
             set_line(line)
             raise SyntaxError("THEN STATEMENT was expected")
@@ -580,12 +580,16 @@ def parser(tokens: list, in_function: bool = False, local_variables: dict = None
                 aux_expresion.append(token)
             final_tokens = tokens.copy()
 
+            res = None
             while True:
                 tokens = aux_tokens.copy()
                 condition = create_ast()
                 if not evaluate(condition): break
                 expresion = aux_expresion.copy()
-                parser(expresion, in_function, local_variables)
+                res = parser(expresion, in_function, local_variables)
+                if res and in_function: 
+                    tokens = []
+                    return res
         else:
             set_line(line)
             raise SyntaxError("THEN STATEMENT was expected")
@@ -664,14 +668,18 @@ def parser(tokens: list, in_function: bool = False, local_variables: dict = None
                 if i == for_to: break
                 for_body = aux_for_body.copy()
                 ast_variables[for_variable.value] = (NUMBER, i)
-                parser(for_body, in_function, local_variables)
+                res = parser(for_body, in_function, local_variables)
+                if res:
+                    tokens = []
+                    return res
         else:
             set_line(line)
             raise SyntaxError("THEN STATEMENT was expected")
 
-    def check_substatements(tokens: list, first_token: Token):
+    def check_substatements(tokens: list, first_token: Token, check_function: bool = False):
             aux_tokens = [first_token]
             find_end = False
+            return_token = False
             while tokens:
                 aux_token = tokens.pop(0)
                 if aux_token.value in (IF, FOR, WHILE):
@@ -681,11 +689,14 @@ def parser(tokens: list, in_function: bool = False, local_variables: dict = None
                 if aux_token.value == THEN:
                     if tokens[0].struct == NEW_LINE:
                         find_end = True
-                if aux_token.struct == NEW_LINE:
-                    if not find_end: break
+                if aux_token.struct == NEW_LINE and not find_end: 
+                    aux_tokens.append(aux_token)
+                    break
+                if check_function and token.value == RETURN: return_token = True
                 if aux_token.value == END: aux_tokens.append(aux_token); break
                 aux_tokens.append(aux_token)
             
+            if check_function: return aux_tokens, return_token
             return aux_tokens
 
     # Declaration and reassignment of variables
@@ -797,13 +808,18 @@ def parser(tokens: list, in_function: bool = False, local_variables: dict = None
                 
                 while tokens:
                     token = tokens.pop(0)
+                    if token.value in (IF, FOR, WHILE): 
+                        new_tokens, return_token = check_substatements(tokens, token), True
+                        if return_token: function_type = FUNCTION_RETURNED
+                        function_body += new_tokens
+                        continue
+
                     if token.value == END: break
                     if token.struct == NEW_LINE:
                         multi_line = True
                         if single_line:
                             if tokens[0].value == END: token = tokens.pop(0)
                             break
-                        
                         continue
 
                     if multi_line: 
@@ -990,12 +1006,14 @@ def parser(tokens: list, in_function: bool = False, local_variables: dict = None
                 raise TypeError("Opening parenthesis was expected")
         elif token.struct == STATEMENT and token.value == IF:
             res = if_statement()
-            if in_function: return res
+            if res: return res
                 # parser(tokens, in_function, local_variables)
         elif token.struct == STATEMENT and token.value == WHILE:
-            while_statement()
+            res = while_statement()
+            if res: return res
         elif token.struct == STATEMENT and token.value == FOR:
-            for_statement()
+            res = for_statement()
+            if res: return res
         else:
             tokens.insert(0, token)
             return create_ast()
