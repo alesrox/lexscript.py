@@ -4,7 +4,7 @@ At the moment it's made with python, perhabs in the future the code will be migr
 
 # Example of Code
 Code:
-```python
+```julia
 # Variables
 string hi = "Hello World"
 println(hi)
@@ -65,7 +65,7 @@ python3 lexscript.py <file>
 ```
 example:
 ```bash
-python3 lexscript.py tryme.lexscript
+python3 lexscript.py tryme.lx
 ```
 
 # How to install language support on Visual Studio Code
