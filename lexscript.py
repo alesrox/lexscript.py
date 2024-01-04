@@ -18,6 +18,11 @@ STATEMENT         = 'STATEMENT'
 IDENTIFIER        = 'IDENTIFIER'
 KEYWORD           = 'KEYWORD'
 EQ                = 'EQ'
+EQ_ADD            = 'EQ_ADD'
+EQ_SUB            = 'EQ_SUB'
+EQ_MUL            = 'EQ_MUL'
+EQ_DIV            = 'EQ_DIV'
+EQ_POW            = 'EQ_POW'
 LEFTPAREN         = '(' #'LEFT_PARENTHESIS'
 RIGHTPAREN        = ')' #'RIGHT_PARENRHESIS'
 EOF		          = 'EOF'
@@ -248,28 +253,46 @@ def lexer(code: str) -> list:
             else:
                 tokens.append(Token(EQ, None, num_line))
         elif current_char == '+':
+            if code[position+1] == '=':
+                current_char, position = next_char(code, position + 1)
+                tokens.append(Token(EQ_ADD, None, num_line))
+                continue
             tokens.append(Token(ADD, None, num_line))
         elif current_char == '-':
             if code[position+1] == '>':
                 current_char, position = next_char(code, position)
                 tokens.append(Token(KEYWORD, ALT_DOES, num_line))
                 continue
-
+            if code[position+1] == '=':
+                current_char, position = next_char(code, position + 1)
+                tokens.append(Token(EQ_SUB, None, num_line))
+                continue
             if position > 0:
                 if tokens[-1].struct in (FLOAT, INT, IDENTIFIER):
                     current_char, position = next_char(code, position)
                     tokens.append(Token(SUB, None, num_line))
                     continue
-
             current_char, position = next_char(code, position)
             token_number, position = make_number(current_char, code, position, num_line)
             token_number.value = -1 * token_number.value
             tokens.append(token_number)
         elif current_char == '*':
+            if code[position+1] == '=':
+                current_char, position = next_char(code, position + 1)
+                tokens.append(Token(EQ_MUL, None, num_line))
+                continue
             tokens.append(Token(MUL, None, num_line))
         elif current_char == '/':
+            if code[position+1] == '=':
+                current_char, position = next_char(code, position + 1)
+                tokens.append(Token(EQ_DIV, None, num_line))
+                continue
             tokens.append(Token(DIV, None, num_line))
         elif current_char == '^':
+            if code[position+1] == '=':
+                current_char, position = next_char(code, position + 1)
+                tokens.append(Token(EQ_POW, None, num_line))
+                continue
             tokens.append(Token(POW, None, num_line))
         elif current_char == '!' and code[position+1] == '=':
             current_char, position = next_char(code, position)
@@ -391,8 +414,25 @@ def parser(tokens: list, in_function: bool = False, local_variables: dict = None
                     tokens.insert(0, token)
                     assignment(ast_variables[token.value][0])
                     return ast_variables[token.value][1]
-                                # Check if it's a bult in function
-                elif token.value in bult_in_function:
+                elif "EQ_" in tokens[0].struct:
+                    operation = tokens[0].struct
+                    tokens[0] = Token(EQ, None, tokens[0].line)
+                    tokens.insert(1, token)
+                    match operation:
+                        case 'EQ_ADD':
+                            tokens.insert(2, Token(ADD, None, tokens[0].line))
+                        case 'EQ_SUB':
+                            tokens.insert(2, Token(SUB, None, tokens[0].line))
+                        case 'EQ_MUL':
+                            tokens.insert(2, Token(MUL, None, tokens[0].line))
+                        case 'EQ_DIV':
+                            tokens.insert(2, Token(DIV, None, tokens[0].line))
+                        case 'EQ_POW':
+                            tokens.insert(2, Token(POW, None, tokens[0].line))
+                    tokens.insert(0, token)
+                    assignment(ast_variables[token.value][0])
+                    return ast_variables[token.value][1]
+                elif token.value in bult_in_function: # Check if it's a bult in function
                     return execute_builtin_funcs(token.value)
                 elif token.value in ast_variables: # check if it's calling itself
                     if ast_variables[token.value][0] in (FUNCTION, FUNCTION_RETURNED): # if it's a functions, execute itself
@@ -403,13 +443,6 @@ def parser(tokens: list, in_function: bool = False, local_variables: dict = None
                 elif token.value in global_variables:
                     if global_variables[token.value][0] in (FUNCTION, FUNCTION_RETURNED): # if it's a functions, execute itself
                         if tokens[0].struct == LEFTPAREN:
-                            # h = execute_function(token.value)
-                            # tokens.pop(0)
-                            # tokens.pop(0)
-                            # print(h, tokens, token.value)
-                            # y = execute_function(token.value)
-                            # print(y)
-                            # exit()
                             return execute_function(token.value)
                     
                     raise ValueError(f"Non defined variable: \'{token.value}\'")
@@ -437,7 +470,7 @@ def parser(tokens: list, in_function: bool = False, local_variables: dict = None
                     set_line(token.line)
                     raise SyntaxError("Equal sign (=) was expected")
             elif sub_token.struct == IDENTIFIER and sub_token.value in global_variables:
-                if tokens != []:
+                if tokens:
                     if tokens[0].struct == EQ:
                         tokens.insert(0, sub_token)
                         assignment(global_variables[sub_token.value][0], True)
@@ -585,7 +618,7 @@ def parser(tokens: list, in_function: bool = False, local_variables: dict = None
             if tokens[0].struct == NEW_LINE:
                 tokens.pop(0)
                 multi_line = True
-                    
+            
             while tokens:
                 token = tokens.pop(0)
                 # Checking if are a substatement
@@ -1010,6 +1043,23 @@ def parser(tokens: list, in_function: bool = False, local_variables: dict = None
             elif tokens[0].struct == EQ:
                 tokens.insert(0, token)
                 assignment(ast_variables[token.value][0])
+            elif "EQ_" in tokens[0].struct:
+                    operation = tokens[0].struct
+                    tokens[0] = Token(EQ, None, tokens[0].line)
+                    tokens.insert(1, token)
+                    match operation:
+                        case 'EQ_ADD':
+                            tokens.insert(2, Token(ADD, None, tokens[0].line))
+                        case 'EQ_SUB':
+                            tokens.insert(2, Token(SUB, None, tokens[0].line))
+                        case 'EQ_MUL':
+                            tokens.insert(2, Token(MUL, None, tokens[0].line))
+                        case 'EQ_DIV':
+                            tokens.insert(2, Token(DIV, None, tokens[0].line))
+                        case 'EQ_POW':
+                            tokens.insert(2, Token(POW, None, tokens[0].line))
+                    tokens.insert(0, token)
+                    assignment(ast_variables[token.value][0])
             else:
                 tokens.insert(0, token)
                 return logic_operations()
@@ -1020,8 +1070,9 @@ def parser(tokens: list, in_function: bool = False, local_variables: dict = None
                 set_line(tokens[0].line)
                 raise TypeError("Opening parenthesis was expected")
         elif token.struct == STATEMENT and token.value == IF:
-            return if_statement()
-
+            res = if_statement()
+            if in_function: return res
+                # parser(tokens, in_function, local_variables)
         elif token.struct == STATEMENT and token.value == WHILE:
             while_statement()
         elif token.struct == STATEMENT and token.value == FOR:
@@ -1114,7 +1165,7 @@ if __name__ == '__main__':
     try:
         file = open(sys.argv[-1])
     except:
-        file = open('test.lexscript')
+        file = open('test.lx')
 
     code = file.read()
     if '--debug' in sys.argv:
