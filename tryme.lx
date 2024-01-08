@@ -24,6 +24,13 @@ var test = 1
 while test < 4 then test += 1
 println("Var test after while loop:", test)
 
+num = 0
+while num < 6 then
+    num += 1
+    if num == 4 then continue
+    if num == 6 then println(num) else print(num)
+end
+
 # FOR STATEMENT
 var example = 0
 for i to 4 then example += i

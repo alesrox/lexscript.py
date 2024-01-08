@@ -71,6 +71,8 @@ RETURN            = 'RETURN'
 GLOBAL            = 'GLOBAL'
 NUMBER            = 'VAR'
 STRING            = 'STRING'
+BREAK             = 'BREAK'
+CONTINUE          = 'CONTINUE'
 BOOL              = 'BOOL'
 TRUE              = 'True'
 FALSE             = 'False'      
@@ -184,6 +186,10 @@ def make_identifier(current_char: str, code: str, position: int, num_line: int) 
         return Token(KEYWORD, END, num_line), position
     elif id_str_upper == GLOBAL:
         return Token(KEYWORD, GLOBAL, num_line), position
+    elif id_str_upper == BREAK:
+        return Token(KEYWORD, BREAK, num_line), position
+    elif id_str_upper == CONTINUE:
+        return Token(KEYWORD, CONTINUE, num_line), position
 
     
     # LOGIC OPERATORS
@@ -460,6 +466,10 @@ def parser(tokens: list, in_function: bool = False, local_variables: dict = None
                 parser(tokens, in_function, local_variables)
         elif token.value == RETURN:
             return create_ast()
+        elif token.value == BREAK:
+            return BREAK
+        elif token.value == CONTINUE:
+            return CONTINUE
         else:
             set_line(token.line)
             raise SyntaxError(f"Unexpected symbol: {token.value if token.value else token.struct}")
@@ -515,7 +525,7 @@ def parser(tokens: list, in_function: bool = False, local_variables: dict = None
                             if tokens[0].struct == NEW_LINE: 
                                 if not multi_line: break
                             tokens.pop(0)
-
+                
                 return parser(inside_if_tokens, in_function, local_variables)
             else:
                 if not tokens: return None
@@ -587,9 +597,9 @@ def parser(tokens: list, in_function: bool = False, local_variables: dict = None
                 if not evaluate(condition): break
                 expresion = aux_expresion.copy()
                 res = parser(expresion, in_function, local_variables)
-                if res and in_function: 
-                    tokens = []
-                    return res
+                if res == CONTINUE: continue
+                if res and in_function: tokens = []; return res
+                if res == BREAK: break
         else:
             set_line(line)
             raise SyntaxError("THEN STATEMENT was expected")
@@ -1014,6 +1024,8 @@ def parser(tokens: list, in_function: bool = False, local_variables: dict = None
         elif token.struct == STATEMENT and token.value == FOR:
             res = for_statement()
             if res: return res
+        elif token.struct == END_LINE:
+            continue
         else:
             tokens.insert(0, token)
             return create_ast()
