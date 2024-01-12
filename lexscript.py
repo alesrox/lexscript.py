@@ -91,6 +91,7 @@ global_variables = {
     "inf":      ("VAR", inf),
     "nan":      ("VAR", nan)
 }
+
 bult_in_function = [
     'print', 'println', 
     'input', 'input_num', 
@@ -1118,6 +1119,6 @@ if __name__ == '__main__':
         startTime = time.time()
         code = file.read()
         debug(code) if '--debug' in sys.argv else execute(code)
-        if '--time' in sys.argv: print(f"\n\nExecuting time: {(time.time() - startTime)*1000:.2f} miliseconds")
+        if '--time' in sys.argv: print(f"\n\nExecuting time: {(time.time() - startTime)*1000:.2f} miliseconds or {(time.time() - startTime):.5f} seconds")
     except KeyboardInterrupt:
-        print(f"\n\nKeyboard Interrupt - Executing time: {(time.time() - startTime)*1000:.2f} miliseconds")
+        print(f"\n\nKeyboard Interrupt - Executing time: {(time.time() - startTime)*1000:.2f} miliseconds or {(time.time() - startTime):.5f} seconds")
